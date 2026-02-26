@@ -6,5 +6,11 @@ compatibility_date = "2024-09-23"
 ALLOWED_ORIGINS = ""
 # CLAUDE_MODEL = "claude-sonnet-4-20250514"
 
-# ANTHROPIC_API_KEY must be set as a secret:
+# Secrets — set via wrangler or Cloudflare Dashboard:
 #   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put USAJOBS_API_KEY
+#   wrangler secret put USAJOBS_EMAIL
+#
+# Get a USAJobs API key at: https://developer.usajobs.gov/APIRequest/Index
+# USAJOBS_EMAIL = the email you registered with
+# USAJOBS_API_KEY = the API key they email you

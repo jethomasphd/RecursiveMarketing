@@ -1,7 +1,7 @@
 {
-  "redirectTemplate": "https://jobs.best-jobs-online.com/jobs?q={{interest}}&l={{location}}",
+  "redirectTemplate": "https://www.usajobs.gov/Search/Results?k={{interest}}&l={{location}}",
   "fallbackInterest": "jobs",
-  "fallbackLocation": "near me",
+  "fallbackLocation": "",
   "title": "Exit",
-  "finalLine": "Not an answer box. A bridge. Go."
+  "finalLine": "Federal positions. Verified. Real. Go."
 }

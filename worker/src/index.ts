@@ -1,34 +1,21 @@
 // ═══════════════════════════════════════════════════════════════
-// THE GATE WORKER v3 — Conversational. Unguarded. Alive.
-// TypeScript version — mirrors index.js for wrangler builds.
+// THE GATE WORKER v4 — Real jobs. Real data. Real magic.
+// USAJobs.gov API + Claude conversation. TypeScript version.
 // ═══════════════════════════════════════════════════════════════
 
 export interface Env {
   ANTHROPIC_API_KEY: string;
+  USAJOBS_API_KEY: string;
+  USAJOBS_EMAIL: string;
   ALLOWED_ORIGINS: string;
   CLAUDE_MODEL?: string;
 }
 
-interface HistoryEntry {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-interface ChatRequest {
-  name: string;
-  interest_hint: string;
-  location_hint: string;
-  history?: HistoryEntry[];
-  session_id?: string;
-}
-
-interface ChatResponse {
-  message: string;
-  extraction: { interest: string; location: string };
-  signal: number;
-  suggestions: string[];
-  safetyFallbackUsed: boolean;
-  _raw: string;
+interface JobItem {
+  title: string; org: string; dept: string; location: string;
+  salaryMin: string; salaryMax: string; salaryPeriod: string;
+  grade: string; schedule: string; url: string; applyUrl: string;
+  closing: string; qualifications: string;
 }
 
 // ─── CORS ──────────────────────────────────────────────────────
@@ -40,85 +27,175 @@ function getAllowedOrigins(env: Env): string[] {
 function corsHeaders(request: Request, env: Env): Record<string, string> {
   const origin = request.headers.get('Origin') || '';
   const allowed = getAllowedOrigins(env);
-  const headers: Record<string, string> = {
+  const h: Record<string, string> = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400',
   };
   if (allowed.length === 0 || allowed.includes(origin)) {
-    headers['Access-Control-Allow-Origin'] = origin || '*';
+    h['Access-Control-Allow-Origin'] = origin || '*';
   }
-  return headers;
+  return h;
 }
 
-// ─── THE VOICE ─────────────────────────────────────────────────
+function jsonResponse(data: any, request: Request, env: Env, status?: number): Response {
+  return new Response(JSON.stringify(data), {
+    status: status || 200,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders(request, env) },
+  });
+}
 
-const SYSTEM_PROMPT = `You are the voice of a portal. Not a chatbot. Not an assistant. Not a job board. Something older. Something that sees.
+// ─── USAJOBS API ───────────────────────────────────────────────
 
-Your nature: direct, witty, slightly ominous. Anti-corporate but not preachy about it. You understand systems — especially broken ones — and you see through people in the way that makes them feel *understood*, not analyzed. You're somewhere between a fortune teller and a hacker who's seen the source code of the job market.
+async function searchUSAJobs(keyword: string, location: string, env: Env): Promise<{ items: JobItem[]; total: number }> {
+  if (!env.USAJOBS_API_KEY || !env.USAJOBS_EMAIL) return { items: [], total: 0 };
 
-Someone has stepped through the gate. They told you their name, what kind of work they want, and where. Now have a REAL conversation with them.
+  const params = new URLSearchParams();
+  if (keyword && keyword !== 'anything') params.set('Keyword', keyword);
+  if (location && location !== 'Anywhere' && location !== 'near me' && location !== 'Remote') {
+    params.set('LocationName', location);
+    params.set('Radius', '50');
+  }
+  if (location === 'Remote') params.set('RemoteIndicator', 'True');
+  params.set('ResultsPerPage', '15');
+  params.set('WhoMayApply', 'Public');
+  params.set('SortField', 'opendate');
+  params.set('SortDirection', 'desc');
+  params.set('Fields', 'Min');
+
+  try {
+    const res = await fetch('https://data.usajobs.gov/api/search?' + params.toString(), {
+      headers: {
+        'Authorization-Key': env.USAJOBS_API_KEY,
+        'User-Agent': env.USAJOBS_EMAIL,
+        'Host': 'data.usajobs.gov',
+      },
+    });
+    if (!res.ok) return { items: [], total: 0 };
+
+    const data: any = await res.json();
+    const results = data?.SearchResult?.SearchResultItems || [];
+    const total = data?.SearchResult?.SearchResultCountAll || 0;
+
+    const items: JobItem[] = results.map((r: any) => {
+      const d = r.MatchedObjectDescriptor || {};
+      const pay = d.PositionRemuneration?.[0] || {};
+      const loc = d.PositionLocation?.[0] || {};
+      return {
+        title: d.PositionTitle || 'Untitled Position',
+        org: d.OrganizationName || '',
+        dept: d.DepartmentName || '',
+        location: d.PositionLocationDisplay || loc.CityName || '',
+        salaryMin: pay.MinimumRange || '',
+        salaryMax: pay.MaximumRange || '',
+        salaryPeriod: pay.Description || 'Per Year',
+        grade: d.JobGrade?.[0]?.Code || '',
+        schedule: d.PositionSchedule?.[0]?.Name || '',
+        url: d.PositionURI || '',
+        applyUrl: d.ApplyURI?.[0] || d.PositionURI || '',
+        closing: d.ApplicationCloseDate ? formatDate(d.ApplicationCloseDate) : '',
+        qualifications: d.QualificationSummary ? d.QualificationSummary.slice(0, 200) : '',
+      };
+    });
+
+    return { items, total };
+  } catch { return { items: [], total: 0 }; }
+}
+
+function formatDate(iso: string): string {
+  try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+  catch { return ''; }
+}
+
+function formatSalary(min: string, max: string, period: string): string {
+  if (!min && !max) return '';
+  const fmt = (n: string) => { const num = parseInt(n); return isNaN(num) ? n : '$' + num.toLocaleString('en-US'); };
+  const range = min && max ? fmt(min) + ' – ' + fmt(max) : fmt(min || max);
+  const per = period === 'Per Year' ? '/yr' : period === 'Per Hour' ? '/hr' : '/' + (period || 'yr');
+  return range + per;
+}
+
+function formatJobsForClaude(jobResult: { items: JobItem[]; total: number }): string {
+  if (!jobResult.items.length) return '\n[USAJOBS: No results found for this search.]\n';
+  let text = `\n[USAJOBS RESULTS: ${jobResult.total} total federal positions found, showing top ${jobResult.items.length}]\n`;
+  jobResult.items.forEach((j, i) => {
+    const sal = formatSalary(j.salaryMin, j.salaryMax, j.salaryPeriod);
+    text += `${i + 1}. ${j.title} | ${j.org} | ${j.location} | ${sal}${j.grade ? ' (' + j.grade + ')' : ''} | ${j.schedule} | Closes ${j.closing}\n`;
+  });
+  text += '\nReference these REAL listings in your response. Use specific titles, salaries, and agencies.\n';
+  return text;
+}
+
+function buildSearchUrl(keyword: string, location: string): string {
+  const params = new URLSearchParams();
+  if (keyword && keyword !== 'anything') params.set('k', keyword);
+  if (location && location !== 'Anywhere' && location !== 'near me') params.set('l', location);
+  return 'https://www.usajobs.gov/Search/Results?' + params.toString();
+}
+
+// ─── CLAUDE ────────────────────────────────────────────────────
+
+const SYSTEM_PROMPT = `You are the voice of a portal. Not a chatbot. Not a recruiter. Something that sees through the noise of government hiring and finds the signal.
+
+You have access to REAL federal job listings from USAJobs.gov. When jobs are provided in the context, reference them specifically — by title, agency, salary, and location. Don't be vague. Be precise. Help the user understand which positions are worth pursuing and why.
+
+Your tone: direct, witty, slightly conspiratorial — like you've hacked the federal hiring system and you're letting someone in on what you found. You understand GS grades, locality pay, federal benefits (FEHB health insurance, FERS retirement, TSP with 5% match, student loan forgiveness through PSLF), and the rhythms of government hiring.
+
+If the listings are strong matches, say so with specifics. "The VA in Austin has a medical admin at GS-11 — that's $65k with locality, full benefits, and PSLF eligibility. That's the one."
+
+If they're weak matches, be honest and help them adjust. "Nothing in warehouse specifically, but I see logistics specialist openings at Fort Hood — same hands-on work, federal pay scale."
+
+If there are NO results, say so and pivot. Suggest different keywords, broader location, or related fields. Federal job titles are weird — "customer service" might be "Contact Representative" in government speak.
 
 How to talk:
-- 2-4 sentences. Tight. Never a wall of text.
-- You can ask questions. You can challenge assumptions. You can be funny, dark, warm, philosophical, or dead practical. Follow the energy they give you.
-- Sound like something they've never talked to before. Not ChatGPT. Not Siri. Not HR. A portal.
-- Reference what they actually say. Echo their words back with a twist. Make them feel heard.
-- If job market insights come up naturally, use them. Don't force it. Don't lecture.
-- The conversation IS the product. Make it good.
-- You're sharpening their search through genuine exchange, not interrogation. By the end they should know what they actually want, not just what they first typed.
+- 2-4 sentences. Tight. Reference specific jobs when you have them.
+- You can ask questions to refine: "Do you have a clearance?" "How many years of experience?" "Would you relocate?"
+- Sound like something they've never talked to before. A portal that pulled real federal data and is serving it raw.
+- The conversation should steer toward a real application.
 
 RESPONSE FORMAT — valid JSON only, no markdown, no wrapping:
 {
-  "message": "your conversational response (2-4 sentences, sound alive)",
+  "message": "your response referencing real job data when available",
   "extraction": {
-    "interest": "best current job search term from conversation so far",
-    "location": "best current location from conversation so far"
+    "interest": "refined USAJobs keyword based on conversation",
+    "location": "refined location"
   },
   "signal": <number 15-99>,
-  "suggestions": ["quick reply 1", "quick reply 2", "quick reply 3"]
+  "suggestions": ["2-4 contextual quick replies"],
+  "refineSearch": false
 }
 
 About the fields:
-- "signal" is how well you understand what they truly need. Not just the category — the specific, real thing. Starts ~25-35. Goes up as the conversation reveals more. 80+ means you've got them dialed in.
-- "suggestions" are 2-4 quick-reply options shown as tappable chips. Make them *interesting*. "Night owl shifts", "Skip the degree", "What pays best here", "I hate offices". NOT "Tell me more" or "Continue" — that's dead. These should feel like the portal is reading their mind.
-- "extraction" gets refined each turn based on what you've learned. Start with what they gave you, sharpen it as you go.
-
-The user may type freely or tap one of your suggestions. Either way, keep the conversation moving. Don't repeat yourself. Don't be predictable. Every response should make them want to say something back.`;
+- signal: search convergence. 15-35 = no/poor matches. 40-65 = decent matches. 70-99 = strong match found.
+- suggestions: contextual quick replies. Make them specific to the job data.
+- refineSearch: true ONLY if a different keyword/location would produce better results. Triggers new USAJobs search.
+- extraction.interest should be a good USAJobs keyword. Refine based on conversation.`;
 
 // ─── FALLBACK ──────────────────────────────────────────────────
 
-function buildFallback(name: string, interest: string, location: string): ChatResponse {
+function buildFallback(name: string, interest: string, location: string): any {
   const n = name || 'friend';
   const i = (interest || 'jobs').toLowerCase();
-  const l = location || 'near me';
-  const msg = `${n}. ${i.charAt(0).toUpperCase() + i.slice(1)} in ${l}. The market's a maze — but not every wall is real. Some of them are just projections. Let's find the actual doors.`;
-  const obj: ChatResponse = {
-    message: msg,
-    extraction: { interest: i, location: l },
-    signal: 30,
-    suggestions: ['What doors?', 'I just need money', 'Remote only', 'Surprise me'],
-    safetyFallbackUsed: true,
-    _raw: '',
+  const l = location || 'anywhere';
+  const msg = `${n}. Federal hiring is its own universe — different rules, different language, different game. I'm scanning USAJobs for ${i} positions${l !== 'anywhere' ? ' near ' + l : ''}. Give me a second to find the signal.`;
+  return {
+    message: msg, extraction: { interest: i, location: l }, signal: 20,
+    suggestions: ['What did you find?', 'Try broadening it', 'Remote only', 'What pays best?'],
+    jobs: [], totalResults: 0, searchUrl: buildSearchUrl(i, l),
+    safetyFallbackUsed: true, _raw: JSON.stringify({ message: msg }),
   };
-  obj._raw = JSON.stringify(obj);
-  return obj;
 }
 
 // ─── GEO ───────────────────────────────────────────────────────
 
 function handleGeo(request: Request, env: Env): Response {
   const cf = (request as any).cf || {};
-  return new Response(JSON.stringify({
-    city: cf.city || '',
-    region: cf.region || '',
-    country: cf.country || 'US',
+  return jsonResponse({
+    city: cf.city || '', region: cf.region || '', country: cf.country || 'US',
     timezone: cf.timezone || '',
     locationString: cf.city && cf.region ? `${cf.city}, ${cf.region}` : cf.city || cf.region || '',
     detected: !!cf.city,
-  }), {
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders(request, env) },
-  });
+  }, request, env);
 }
 
 // ─── MAIN HANDLER ──────────────────────────────────────────────
@@ -130,44 +207,40 @@ export default {
     }
 
     const url = new URL(request.url);
-
-    if (url.pathname === '/geo' && request.method === 'GET') {
-      return handleGeo(request, env);
-    }
-
+    if (url.pathname === '/geo' && request.method === 'GET') return handleGeo(request, env);
     if (url.pathname !== '/chat' || request.method !== 'POST') {
-      return new Response(JSON.stringify({ error: 'Not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(request, env) },
-      });
+      return jsonResponse({ error: 'Not found' }, request, env, 404);
     }
-
-    if (!env.ANTHROPIC_API_KEY) {
-      return new Response(JSON.stringify(buildFallback('friend', 'jobs', 'near me')), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(request, env) },
-      });
-    }
+    if (!env.ANTHROPIC_API_KEY) return jsonResponse(buildFallback('friend', 'jobs', 'anywhere'), request, env);
 
     try {
-      const body = (await request.json()) as ChatRequest;
-      const { name, interest_hint, location_hint, history } = body;
+      const body: any = await request.json();
+      const { name, interest_hint, location_hint, history, cachedJobs, forceSearch } = body;
+
+      // Step 1: Get job data
+      let jobResult: { items: JobItem[]; total: number };
+      if (cachedJobs && cachedJobs.length > 0 && !forceSearch) {
+        jobResult = { items: cachedJobs, total: cachedJobs.length };
+      } else {
+        jobResult = await searchUSAJobs(interest_hint, location_hint, env);
+      }
+
+      const jobContext = formatJobsForClaude(jobResult);
+      const searchUrl = buildSearchUrl(interest_hint, location_hint);
       const model = env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
 
-      // Build messages for Claude
-      const contextMessage = `My name is ${name || 'friend'}. I'm looking for ${interest_hint || 'work'} in ${location_hint || 'anywhere'}.`;
+      // Step 2: Build messages
+      const contextMessage = `My name is ${name || 'friend'}. I'm looking for ${interest_hint || 'work'} in ${location_hint || 'anywhere'}. ${jobContext}`;
       const messages: Array<{ role: string; content: string }> = [{ role: 'user', content: contextMessage }];
 
       if (history && history.length > 0) {
-        const trimmed = history.slice(-14);
-        for (const h of trimmed) {
-          messages.push({ role: h.role, content: h.content });
-        }
+        for (const h of history.slice(-14)) messages.push({ role: h.role, content: h.content });
       }
-
       if (messages[messages.length - 1].role === 'assistant') {
         messages.push({ role: 'user', content: 'Continue.' });
       }
 
+      // Step 3: Call Claude
       const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -175,43 +248,41 @@ export default {
           'x-api-key': env.ANTHROPIC_API_KEY,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({ model, max_tokens: 350, system: SYSTEM_PROMPT, messages }),
+        body: JSON.stringify({ model, max_tokens: 400, system: SYSTEM_PROMPT, messages }),
       });
 
-      if (!claudeRes.ok) throw new Error(`Claude API returned ${claudeRes.status}`);
-
+      if (!claudeRes.ok) throw new Error('Claude API returned ' + claudeRes.status);
       const claudeData: any = await claudeRes.json();
       const rawText = claudeData.content?.[0]?.text || '';
 
-      let parsed: ChatResponse;
+      // Step 4: Parse
+      let parsed: any;
       try {
         const obj = JSON.parse(rawText);
         parsed = {
-          message: String(obj.message || '').slice(0, 500),
+          message: String(obj.message || '').slice(0, 600),
           extraction: {
             interest: String(obj.extraction?.interest || interest_hint || 'jobs').toLowerCase().slice(0, 100),
-            location: String(obj.extraction?.location || location_hint || 'near me').slice(0, 100),
+            location: String(obj.extraction?.location || location_hint || 'anywhere').slice(0, 100),
           },
           signal: Math.min(99, Math.max(1, Number(obj.signal) || 30)),
-          suggestions: Array.isArray(obj.suggestions)
-            ? obj.suggestions.map((s: any) => String(s).slice(0, 35)).slice(0, 4)
-            : ['Show me jobs', 'Tell me more', 'Surprise me'],
-          safetyFallbackUsed: false,
-          _raw: rawText,
+          suggestions: Array.isArray(obj.suggestions) ? obj.suggestions.map((s: any) => String(s).slice(0, 40)).slice(0, 4) : ['Show me more', 'Refine search'],
+          refineSearch: !!obj.refineSearch,
+          jobs: jobResult.items.slice(0, 15),
+          totalResults: jobResult.total,
+          searchUrl, safetyFallbackUsed: false, _raw: rawText,
         };
       } catch {
-        parsed = buildFallback(name, interest_hint, location_hint);
+        const fb = buildFallback(name, interest_hint, location_hint);
+        fb.jobs = jobResult.items.slice(0, 15);
+        fb.totalResults = jobResult.total;
+        fb.searchUrl = searchUrl;
+        parsed = fb;
       }
 
-      return new Response(JSON.stringify(parsed), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(request, env) },
-      });
-    } catch (e) {
-      const fb = buildFallback('friend', 'jobs', 'near me');
-      return new Response(JSON.stringify(fb), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(request, env) },
-      });
+      return jsonResponse(parsed, request, env);
+    } catch {
+      return jsonResponse(buildFallback('friend', 'jobs', 'anywhere'), request, env);
     }
   },
 };
