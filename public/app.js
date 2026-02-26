@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-// THE SPIRAL v5 — Intelligent job matchmaker.
-// Claude + USAJobs → converge on a specific job application.
+// THE SPIRAL v6 — Claude-driven job matchmaker.
+// Picks → Chat. No fake scan. Claude does the heavy lifting.
 // ═══════════════════════════════════════════════════════════════
 
 (function () {
@@ -8,10 +8,10 @@
 
   // ─── CONFIG ──────────────────────────────────────────────────
   var WORKER_URL = window.__WORKER_URL__ || '';
-  var WORKER_TIMEOUT_MS = 20000;
+  var WORKER_TIMEOUT_MS = 30000;
 
   // ─── STATES ──────────────────────────────────────────────────
-  var S = { PORTAL: 0, PICKS: 1, SCAN: 2, CHAT: 3, EXIT: 4 };
+  var S = { PORTAL: 0, PICKS: 1, CHAT: 2, EXIT: 3 };
   var state = S.PORTAL;
 
   // ─── SESSION ─────────────────────────────────────────────────
@@ -27,7 +27,7 @@
   var searchUrl = '';
   var lastSearchKey = '';
   var isWaiting = false;
-  var topPickJob = null; // THE job Claude recommends
+  var topPickJob = null;
 
   // ─── DOM ───────────────────────────────────────────────────
   function $(id) { return document.getElementById(id); }
@@ -134,7 +134,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PICKS → SCAN
+  // PICKS → CHAT (skip scan, go straight to conversation)
   // ═══════════════════════════════════════════════════════════
   function submitPicks(skip) {
     if (state !== S.PICKS) return;
@@ -149,76 +149,45 @@
     if (!selectedInterest) selectedInterest = 'Anything';
     if (!selectedLocation) selectedLocation = detectedLocation || 'Anywhere';
     if (navigator.vibrate) navigator.vibrate(15);
-    state = S.SCAN;
+
     extraction.interest = selectedInterest.toLowerCase();
     extraction.location = selectedLocation;
 
+    // Fade out picks, go straight to chat
     var s1 = $('stage1');
     s1.style.opacity = '0'; s1.style.transition = 'opacity 0.4s';
     setTimeout(function () {
       s1.style.display = 'none';
-      $('sl1').textContent = 'searching ' + selectedInterest.toLowerCase() + ' on USAJobs...';
-      $('sl2').textContent = 'scanning ' + selectedLocation + ' federal positions...';
-      $('stage2').classList.add('active');
-      runScan();
-    }, 400);
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // SCAN — USAJobs search + first Claude call
-  // ═══════════════════════════════════════════════════════════
-  function runScan() {
-    var lines = ['sl0', 'sl1', 'sl2', 'sl3', 'sl4'];
-    var i = 0;
-    var scanDone = false, workerDone = false, workerData = null;
-
-    var interval = setInterval(function () {
-      if (i >= lines.length) {
-        clearInterval(interval);
-        scanDone = true;
-        if (workerDone) transitionToChat(workerData);
-        return;
-      }
-      var el = $(lines[i]);
-      el.classList.add('done');
-      el.innerHTML = '<span class="check">&#x2713;</span>' + el.textContent;
-      i++;
-    }, 700);
-
-    callWorker(null, false, function (data) {
-      workerData = data;
-      workerDone = true;
-      if (scanDone) transitionToChat(data);
-    });
-  }
-
-  function transitionToChat(data) {
-    cachedJobs = data.jobs || [];
-    totalResults = data.totalResults || 0;
-    searchUrl = data.searchUrl || '';
-    lastSearchKey = extraction.interest + '|' + extraction.location;
-
-    rawHistory.push({ role: 'assistant', content: data._raw || JSON.stringify(data) });
-
-    var s2 = $('stage2');
-    s2.style.opacity = '0'; s2.style.transition = 'opacity 0.4s';
-    setTimeout(function () {
-      s2.style.display = 'none';
       state = S.CHAT;
       $('bigName').textContent = userName;
       $('stage3').classList.add('active');
 
-      animateSignal(data.signal || 25);
-      updateResultsCount();
+      // Show thinking immediately — Claude is working
+      showThinking();
 
-      addAssistantBubble(data.message || getFallback(), function () {
-        showJobCards(data.showJobs || []);
-        showSuggestions(data.suggestions);
-        enableInput();
-        updateCTA(data);
+      // Hit the worker (USAJobs + Claude)
+      callWorker(null, false, function (data) {
+        removeThinking();
+
+        cachedJobs = data.jobs || [];
+        totalResults = data.totalResults || 0;
+        searchUrl = data.searchUrl || '';
+        lastSearchKey = extraction.interest + '|' + extraction.location;
+
+        rawHistory.push({ role: 'assistant', content: data._raw || JSON.stringify(data) });
+
+        animateSignal(data.signal || 25);
+        updateResultsCount();
+
+        addAssistantBubble(data.message || getFallback(), function () {
+          showJobCards(data.showJobs || []);
+          showSuggestions(data.suggestions);
+          enableInput();
+          updateCTA(data);
+        });
+
+        setTimeout(startTicker, 5000);
       });
-
-      setTimeout(startTicker, 5000);
     }, 400);
   }
 
@@ -265,7 +234,6 @@
           totalResults = data.totalResults || cachedJobs.length;
           searchUrl = data.searchUrl || searchUrl;
         }
-        // Track top pick
         if (data.topPickJob) {
           topPickJob = data.topPickJob;
         }
@@ -331,16 +299,12 @@
       }
 
       addAssistantBubble(data.message, function () {
-        // Show job cards Claude selected
         if (data.showJobs && data.showJobs.length > 0) {
           showJobCards(data.showJobs);
         }
-
-        // If Claude converged on a top pick, show the featured card
         if (data.topPickJob) {
           showFeaturedJob(data.topPickJob);
         }
-
         showSuggestions(data.suggestions);
         enableInput();
         isWaiting = false;
@@ -359,15 +323,19 @@
     area.appendChild(bubble);
     scrollChat();
 
+    // Escape text for safe innerHTML rendering during typewriter
+    var safeText = esc(text || '');
     var el = bubble.querySelector('.btxt');
     var i = 0;
+
     function type() {
-      if (i >= text.length) {
-        el.innerHTML = el.innerHTML.replace(new RegExp(userName, 'g'), '<span class="hl">' + userName + '</span>');
+      if (i >= safeText.length) {
+        // Highlight the user's name
+        el.innerHTML = el.innerHTML.replace(new RegExp(esc(userName), 'g'), '<span class="hl">' + esc(userName) + '</span>');
         if (callback) callback();
         return;
       }
-      el.innerHTML = text.substring(0, i + 1) + '<span class="cur"></span>';
+      el.innerHTML = safeText.substring(0, i + 1) + '<span class="cur"></span>';
       i++;
       scrollChat();
       setTimeout(type, 12 + Math.random() * 16);
@@ -425,8 +393,8 @@
         '<div class="jc-org">' + esc(j.org || j.dept) + '</div>' +
         '<div class="jc-loc">' + esc(j.location) + '</div>' +
         (salary ? '<div class="jc-salary">' + esc(salary) + '</div>' : '') +
-        (meta.length ? '<div class="jc-meta">' + esc(meta.join(' · ')) + '</div>' : '') +
-        '<div class="jc-apply">View &amp; Apply &#x2192;</div>';
+        (meta.length ? '<div class="jc-meta">' + esc(meta.join(' \u00b7 ')) + '</div>' : '') +
+        '<div class="jc-apply">View &amp; Apply \u2192</div>';
 
       container.appendChild(card);
     }
@@ -435,7 +403,6 @@
     scrollChat();
   }
 
-  // Featured job — the one Claude converged on
   function showFeaturedJob(job) {
     if (!job) return;
     var area = $('chatArea');
@@ -449,14 +416,14 @@
     var salary = formatSalary(job.salaryMin, job.salaryMax, job.salaryPeriod);
 
     card.innerHTML =
-      '<div class="fj-badge">&#x25CA; TOP MATCH</div>' +
+      '<div class="fj-badge">\u25CA TOP MATCH</div>' +
       '<div class="fj-title">' + esc(job.title) + '</div>' +
       '<div class="fj-org">' + esc(job.org) + '</div>' +
       '<div class="fj-dept">' + esc(job.dept) + '</div>' +
       '<div class="fj-loc">' + esc(job.location) + '</div>' +
       (salary ? '<div class="fj-salary">' + esc(salary) + '</div>' : '') +
       (job.closing ? '<div class="fj-closing">Apply by ' + esc(job.closing) + '</div>' : '') +
-      '<div class="fj-apply">APPLY NOW &#x2192;</div>';
+      '<div class="fj-apply">APPLY NOW \u2192</div>';
 
     area.appendChild(card);
     scrollChat();
@@ -468,7 +435,7 @@
       var num = parseInt(n);
       return isNaN(num) ? n : '$' + num.toLocaleString('en-US');
     };
-    var range = min && max ? fmt(min) + ' – ' + fmt(max) : fmt(min || max);
+    var range = min && max ? fmt(min) + ' \u2013 ' + fmt(max) : fmt(min || max);
     var per = period === 'Per Year' ? '/yr' : period === 'Per Hour' ? '/hr' : '';
     return range + per;
   }
@@ -566,20 +533,17 @@
     section.classList.add('visible');
 
     if (data && data.topPickJob) {
-      // Converged — show specific job apply button
       var job = data.topPickJob;
       btn.textContent = 'APPLY: ' + job.title + ' \u2192';
       btn.classList.add('hot');
       btn.setAttribute('data-url', job.applyUrl || job.url || '');
       if (fine) fine.textContent = job.org + ' \u00b7 ' + formatSalary(job.salaryMin, job.salaryMax, job.salaryPeriod);
     } else if (signal >= 60 && topPickJob) {
-      // Previously converged
       btn.textContent = 'APPLY: ' + topPickJob.title + ' \u2192';
       btn.classList.add('hot');
       btn.setAttribute('data-url', topPickJob.applyUrl || topPickJob.url || '');
       if (fine) fine.textContent = topPickJob.org + ' \u00b7 ' + formatSalary(topPickJob.salaryMin, topPickJob.salaryMax, topPickJob.salaryPeriod);
     } else if (totalResults > 0) {
-      // Not converged yet — show browse option
       btn.textContent = 'Browse all ' + totalResults + ' positions \u2192';
       btn.classList.remove('hot');
       btn.setAttribute('data-url', searchUrl);
@@ -592,14 +556,13 @@
     }
   }
 
-  // ─── APPLY / EXIT ──────────────────────────────────────────
+  // ─── APPLY ──────────────────────────────────────────────────
 
   function goToApply() {
     var btn = $('ctaBtn');
     var url = btn.getAttribute('data-url');
 
     if (url) {
-      // Open the job application in a new tab
       window.open(url, '_blank', 'noopener');
     } else if (topPickJob) {
       window.open(topPickJob.applyUrl || topPickJob.url, '_blank', 'noopener');
