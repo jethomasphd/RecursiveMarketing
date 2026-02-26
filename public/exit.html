@@ -60,7 +60,7 @@
 
 <script>
 (function () {
-  var FALLBACK_URL = 'https://jobs.best-jobs-online.com/jobs';
+  var FALLBACK_URL = 'https://www.usajobs.gov/Search/Results';
   var p = new URLSearchParams(window.location.search);
   var interest = p.get('interest') || 'jobs';
   var location = p.get('location') || 'near me';
@@ -94,7 +94,7 @@
     }
     var url = cfg && cfg.redirectTemplate
       ? cfg.redirectTemplate.replace('{{interest}}',encodeURIComponent(interest)).replace('{{location}}',encodeURIComponent(location))
-      : FALLBACK_URL + '?q=' + encodeURIComponent(interest) + '&l=' + encodeURIComponent(location);
+      : FALLBACK_URL + '?k=' + encodeURIComponent(interest) + '&l=' + encodeURIComponent(location);
     setTimeout(function(){window.location.href=url},2000);
   }
   run();

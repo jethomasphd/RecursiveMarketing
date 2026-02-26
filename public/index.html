@@ -167,10 +167,10 @@
     margin-left:auto;text-align:right;border-top-right-radius:4px;
     color:var(--cyan);font-size:13px;font-weight:500;max-width:75%}
 
-  .portal-mark{color:var(--magenta);font-size:10px;margin-right:6px}
-  .bubble-text{color:var(--white)}
-  .bubble-text .hl{color:var(--cyan);font-weight:600}
-  .cursor{display:inline-block;width:2px;height:14px;background:var(--cyan);
+  .pmark{color:var(--magenta);font-size:10px;margin-right:6px}
+  .btxt{color:var(--white)}
+  .btxt .hl{color:var(--cyan);font-weight:600}
+  .cur{display:inline-block;width:2px;height:14px;background:var(--cyan);
     vertical-align:middle;margin-left:2px;animation:blink .8s step-end infinite}
 
   .thinking .dots{display:inline-flex;gap:2px}
@@ -178,6 +178,29 @@
     animation:dot 1.2s ease-in-out infinite}
   .thinking .dots span:nth-child(2){animation-delay:.2s}
   .thinking .dots span:nth-child(3){animation-delay:.4s}
+
+  /* Job cards */
+  .job-cards{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px;
+    animation:bubbleIn .3s ease both}
+  .job-card{display:block;padding:10px 14px;
+    background:var(--surface);border:1px solid var(--dim);border-radius:12px;
+    text-decoration:none;color:var(--white);transition:all .2s;
+    -webkit-tap-highlight-color:transparent}
+  .job-card:hover,.job-card:active{border-color:var(--green);
+    box-shadow:0 0 12px var(--green-glow)}
+  .job-card:active{transform:scale(0.98)}
+  .jc-title{font-size:13px;font-weight:600;color:var(--white);margin-bottom:2px}
+  .jc-org{font-size:11px;color:var(--cyan);margin-bottom:1px}
+  .jc-loc{font-size:10px;color:var(--grey)}
+  .jc-salary{font-size:12px;font-weight:600;color:var(--green);margin-top:4px}
+  .jc-meta{font-family:'JetBrains Mono',monospace;font-size:9px;
+    color:var(--dim);margin-top:2px;letter-spacing:.3px}
+  .jc-apply{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;
+    color:var(--green);margin-top:5px;letter-spacing:.5px;text-transform:uppercase}
+
+  /* Results count */
+  .results-count{font-family:'JetBrains Mono',monospace;font-size:9px;
+    color:var(--green);letter-spacing:.5px;margin-top:3px;display:none}
 
   /* Suggestions + input area — pinned to bottom */
   .chat-footer{flex-shrink:0;padding:6px 16px 10px;
@@ -326,10 +349,10 @@
   <div class="stage-2" id="stage2">
     <div class="scan-ring"></div>
     <div class="scan-lines">
-      <div class="scan-line" id="sl0">scanning the market...</div>
+      <div class="scan-line" id="sl0">connecting to USAJobs.gov...</div>
       <div class="scan-line" id="sl1">mapping opportunities...</div>
       <div class="scan-line" id="sl2">filtering listings...</div>
-      <div class="scan-line" id="sl3">detecting ghost postings...</div>
+      <div class="scan-line" id="sl3">cross-referencing federal databases...</div>
       <div class="scan-line" id="sl4">calibrating signal...</div>
     </div>
   </div>
@@ -348,6 +371,7 @@
       </div>
       <div class="signal-bar"><div class="signal-fill" id="signalFill"></div></div>
       <div class="signal-label" id="signalLabel">initializing</div>
+      <div class="results-count" id="resultsCount"></div>
     </div>
 
     <div class="chat-area" id="chatArea"></div>
@@ -363,8 +387,8 @@
     </div>
 
     <div class="cta-section" id="ctaSection">
-      <button class="cta-btn" id="ctaBtn">See what&#x2019;s out there &#x2192;</button>
-      <div class="cta-fine">no accounts &#xb7; no data stored &#xb7; verified listings</div>
+      <button class="cta-btn" id="ctaBtn">Search USAJobs.gov &#x2192;</button>
+      <div class="cta-fine">real federal positions &#xb7; verified &#xb7; USAJobs.gov</div>
     </div>
   </div>
 
