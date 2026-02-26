@@ -5,22 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#050510">
 <title>&#x25CA; The Gate</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --void: #050510;
     --surface: #0c0c1a;
-    --surface-light: #12122a;
+    --surface2: #12122a;
     --white: #f0f0f8;
     --grey: #8888aa;
-    --grey-dim: #4a4a6a;
+    --dim: #4a4a6a;
+    --cyan: #00d4ff;
+    --cyan-glow: rgba(0,212,255,0.1);
     --green: #00e85a;
     --green-dim: #00a83f;
     --green-glow: rgba(0,232,90,0.12);
-    --cyan: #00d4ff;
-    --cyan-glow: rgba(0,212,255,0.1);
     --magenta: #e040fb;
-    --magenta-glow: rgba(224,64,251,0.08);
+    --mag-glow: rgba(224,64,251,0.08);
     --gold: #ffd740;
   }
   *{margin:0;padding:0;box-sizing:border-box}
@@ -28,448 +28,249 @@
     height:100%;overflow:hidden;
     background:var(--void);color:var(--white);
     font-family:'Space Grotesk',sans-serif;
+    -webkit-font-smoothing:antialiased;
   }
 
-  .screen{
-    height:100dvh;width:100%;position:relative;overflow:hidden;
-    display:flex;align-items:center;justify-content:center;
-  }
+  .screen{height:100dvh;width:100%;position:relative;overflow:hidden;
+    display:flex;align-items:center;justify-content:center}
 
-  /* ===== STAGE 0: THE PORTAL ===== */
-  .stage-0{
-    display:flex;flex-direction:column;align-items:center;
+  /* ───── PORTAL ───── */
+  .stage-0{display:flex;flex-direction:column;align-items:center;
     justify-content:center;text-align:center;
-    width:100%;height:100%;position:absolute;inset:0;
-    z-index:10;transition:opacity 0.8s ease;padding:20px;
-  }
+    width:100%;height:100%;position:absolute;inset:0;z-index:10;
+    transition:opacity 0.8s ease;padding:20px}
   .stage-0.gone{opacity:0;pointer-events:none}
 
-  .portal{
-    width:140px;height:140px;border-radius:50%;
+  .portal{width:140px;height:140px;border-radius:50%;
     background:conic-gradient(from 0deg,var(--cyan),var(--magenta),var(--green),var(--cyan));
-    animation:portalSpin 3s linear infinite;
+    animation:spin 3s linear infinite;
     display:flex;align-items:center;justify-content:center;
-    cursor:pointer;margin-bottom:28px;
-    box-shadow:0 0 60px var(--cyan-glow),0 0 120px var(--magenta-glow);
-    position:relative;
-  }
-  .portal::after{
-    content:'';position:absolute;inset:6px;
-    background:var(--void);border-radius:50%;
-  }
-  .portal-eye{
-    position:relative;z-index:1;font-size:40px;
-    animation:eyePulse 2s ease-in-out infinite;
-  }
-
-  .portal-text{
-    font-size:13px;font-weight:300;color:var(--grey);
+    cursor:pointer;margin-bottom:28px;position:relative;
+    box-shadow:0 0 60px var(--cyan-glow),0 0 120px var(--mag-glow)}
+  .portal::after{content:'';position:absolute;inset:6px;
+    background:var(--void);border-radius:50%}
+  .portal-eye{position:relative;z-index:1;font-size:40px;
+    animation:pulse 2s ease-in-out infinite}
+  .portal-sub{font-size:13px;font-weight:300;color:var(--grey);
     letter-spacing:3px;text-transform:uppercase;
-    animation:breathe 2s ease-in-out infinite;
-  }
+    animation:breathe 2s ease-in-out infinite}
 
-  /* ===== STAGE 1: PICKS ===== */
-  .stage-1{
-    display:none;flex-direction:column;align-items:center;
+  /* ───── PICKS ───── */
+  .stage-1{display:none;flex-direction:column;align-items:center;
     justify-content:center;text-align:center;
-    width:100%;height:100%;position:absolute;inset:0;
-    z-index:10;padding:16px 20px;
-    overflow-y:auto;
-  }
-  .stage-1.active{display:flex;animation:fadeUp 0.6s ease both}
+    width:100%;height:100%;position:absolute;inset:0;z-index:10;
+    padding:16px 20px;overflow-y:auto}
+  .stage-1.active{display:flex;animation:up 0.6s ease both}
 
-  .name-prompt{
-    font-size:18px;font-weight:300;color:var(--grey);
-    margin-bottom:14px;line-height:1.5;
-  }
-  .name-prompt em{color:var(--white);font-style:normal;font-weight:500}
+  .prompt{font-size:18px;font-weight:300;color:var(--grey);
+    margin-bottom:14px;line-height:1.5}
+  .prompt em{color:var(--white);font-style:normal;font-weight:500}
 
-  .name-input-wrap{
-    position:relative;width:100%;max-width:280px;margin-bottom:18px;
-  }
-  .name-input{
-    width:100%;padding:12px 16px;
+  .input-wrap{position:relative;width:100%;max-width:280px;margin-bottom:18px}
+  .name-input{width:100%;padding:12px 16px;
     font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:500;
     color:var(--white);background:var(--surface);
-    border:1px solid var(--grey-dim);border-radius:12px;
-    text-align:center;outline:none;
-    transition:border-color 0.3s,box-shadow 0.3s;
-    caret-color:var(--cyan);
-  }
-  .name-input:focus{
-    border-color:var(--cyan);
-    box-shadow:0 0 20px var(--cyan-glow);
-  }
-  .name-input::placeholder{color:var(--grey-dim)}
+    border:1px solid var(--dim);border-radius:12px;
+    text-align:center;outline:none;caret-color:var(--cyan);
+    transition:border-color .3s,box-shadow .3s}
+  .name-input:focus{border-color:var(--cyan);box-shadow:0 0 20px var(--cyan-glow)}
+  .name-input::placeholder{color:var(--dim)}
 
-  .picks-label{
-    font-family:'JetBrains Mono',monospace;
-    font-size:10px;color:var(--grey);
-    letter-spacing:2px;text-transform:uppercase;
-    margin-bottom:8px;
-  }
+  .label{font-family:'JetBrains Mono',monospace;font-size:10px;
+    color:var(--grey);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
 
-  .chip-grid{
-    display:flex;flex-wrap:wrap;gap:6px;
-    justify-content:center;
-    max-width:340px;margin-bottom:12px;
-  }
+  .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;
+    max-width:340px;margin-bottom:12px}
 
-  .pick-chip{
-    padding:8px 14px;
-    font-family:'Space Grotesk',sans-serif;
-    font-size:12px;font-weight:500;
-    color:var(--grey);background:var(--surface);
-    border:1px solid var(--grey-dim);border-radius:20px;
-    cursor:pointer;transition:all 0.2s;
-    -webkit-tap-highlight-color:transparent;
-  }
+  .pick-chip{padding:8px 14px;font-family:'Space Grotesk',sans-serif;
+    font-size:12px;font-weight:500;color:var(--grey);background:var(--surface);
+    border:1px solid var(--dim);border-radius:20px;cursor:pointer;
+    transition:all .2s;-webkit-tap-highlight-color:transparent}
   .pick-chip:active{transform:scale(0.95)}
-  .pick-chip.selected{
-    color:var(--cyan);border-color:var(--cyan);
-    box-shadow:0 0 15px var(--cyan-glow);
-  }
+  .pick-chip.selected{color:var(--cyan);border-color:var(--cyan);
+    box-shadow:0 0 15px var(--cyan-glow)}
+  .detected-chip{border-color:var(--green-dim);color:var(--green)}
+  .detected-chip.selected{border-color:var(--green);color:var(--green);
+    box-shadow:0 0 15px var(--green-glow)}
+  .detected-chip.pop{animation:pop .4s ease both}
 
-  /* Detected location chip */
-  .detected-chip{
-    border-color:var(--green-dim);color:var(--green);
-    position:relative;
-  }
-  .detected-chip.selected{
-    border-color:var(--green);color:var(--green);
-    box-shadow:0 0 15px var(--green-glow);
-  }
-  .detected-chip.auto-detected{
-    animation:chipPop 0.4s ease both;
-  }
-  .detect-icon{font-size:10px}
-
-  /* Location text input */
-  .loc-input-wrap{
-    width:100%;max-width:280px;margin-bottom:16px;
-  }
-  .loc-input{
-    width:100%;padding:8px 14px;
-    font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:400;
+  .loc-input{width:100%;max-width:280px;padding:8px 14px;margin-bottom:16px;
+    font-family:'Space Grotesk',sans-serif;font-size:13px;
     color:var(--white);background:var(--surface);
-    border:1px solid var(--grey-dim);border-radius:10px;
-    text-align:center;outline:none;
-    transition:border-color 0.3s,box-shadow 0.3s;
-    caret-color:var(--cyan);
-  }
-  .loc-input:focus{
-    border-color:var(--cyan);
-    box-shadow:0 0 12px var(--cyan-glow);
-  }
-  .loc-input::placeholder{color:var(--grey-dim);font-size:11px}
+    border:1px solid var(--dim);border-radius:10px;
+    text-align:center;outline:none;caret-color:var(--cyan);
+    transition:border-color .3s}
+  .loc-input:focus{border-color:var(--cyan);box-shadow:0 0 12px var(--cyan-glow)}
+  .loc-input::placeholder{color:var(--dim);font-size:11px}
 
-  .name-go{
-    width:100%;max-width:280px;padding:14px;
+  .go-btn{width:100%;max-width:280px;padding:14px;
     font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;
-    color:var(--void);background:var(--cyan);
-    border:none;border-radius:12px;cursor:pointer;
-    transition:all 0.3s;letter-spacing:0.5px;
-    box-shadow:0 0 20px var(--cyan-glow);
-    margin-top:4px;
-  }
-  .name-go:active{transform:scale(0.97)}
-  .name-go:disabled{opacity:0.3;cursor:default}
-  .name-go.pulse{
-    animation:btnPulse 1.5s ease-in-out infinite;
-  }
+    color:var(--void);background:var(--cyan);border:none;border-radius:12px;
+    cursor:pointer;letter-spacing:.5px;
+    box-shadow:0 0 20px var(--cyan-glow);margin-top:4px;transition:all .3s}
+  .go-btn:active{transform:scale(0.97)}
+  .go-btn:disabled{opacity:.3;cursor:default}
+  .go-btn.pulse{animation:btnPulse 1.5s ease-in-out infinite}
+  .skip-btn{margin-top:10px;font-size:11px;color:var(--dim);
+    cursor:pointer;border:none;background:none;letter-spacing:1px}
 
-  .name-skip{
-    margin-top:10px;font-size:11px;color:var(--grey-dim);
-    cursor:pointer;letter-spacing:1px;
-    border:none;background:none;
-    -webkit-tap-highlight-color:transparent;
-  }
-
-  /* ===== STAGE 2: PROCESSING ===== */
-  .stage-2{
-    display:none;flex-direction:column;align-items:center;
+  /* ───── SCAN ───── */
+  .stage-2{display:none;flex-direction:column;align-items:center;
     justify-content:center;text-align:center;
-    width:100%;height:100%;position:absolute;inset:0;
-    z-index:10;padding:20px;
-  }
-  .stage-2.active{display:flex;animation:fadeUp 0.5s ease both}
+    width:100%;height:100%;position:absolute;inset:0;z-index:10;padding:20px}
+  .stage-2.active{display:flex;animation:up .5s ease both}
 
-  .scan-ring{
-    width:80px;height:80px;border-radius:50%;
-    border:2px solid var(--grey-dim);
-    border-top-color:var(--cyan);
-    animation:spin 0.8s linear infinite;
-    margin-bottom:24px;
-  }
-  .scan-lines{
-    width:100%;max-width:300px;
-  }
-  .scan-line{
-    font-family:'JetBrains Mono',monospace;font-size:12px;
-    color:var(--grey-dim);text-align:left;
-    padding:4px 0;overflow:hidden;
-    opacity:0;
-  }
+  .scan-ring{width:80px;height:80px;border-radius:50%;
+    border:2px solid var(--dim);border-top-color:var(--cyan);
+    animation:spin .8s linear infinite;margin-bottom:24px}
+  .scan-lines{width:100%;max-width:300px}
+  .scan-line{font-family:'JetBrains Mono',monospace;font-size:12px;
+    color:var(--dim);text-align:left;padding:4px 0;opacity:0}
   .scan-line.done{color:var(--cyan);opacity:1}
   .scan-line .check{color:var(--green);margin-right:6px}
 
-  /* ===== STAGE 3: THE REVEAL — now a conversation ===== */
-  .stage-3{
-    display:none;flex-direction:column;align-items:center;
-    width:100%;height:100%;position:absolute;inset:0;
-    z-index:10;padding:12px 16px;
-    overflow-y:auto;-webkit-overflow-scrolling:touch;
-  }
-  .stage-3.active{display:flex;animation:fadeUp 0.6s ease both}
+  /* ───── CHAT (stage 3) ───── */
+  .stage-3{display:none;flex-direction:column;
+    width:100%;height:100%;position:absolute;inset:0;z-index:10;padding:0}
+  .stage-3.active{display:flex;animation:up .6s ease both}
 
-  .greeting{
-    font-size:13px;color:var(--cyan);
-    font-family:'JetBrains Mono',monospace;
-    letter-spacing:2px;text-transform:uppercase;
-    margin-top:8px;margin-bottom:4px;
-  }
-  .user-name-big{
-    font-size:28px;font-weight:700;color:var(--white);
-    margin-bottom:8px;text-align:center;
-    text-shadow:0 0 30px var(--cyan-glow);
-  }
+  /* Header area */
+  .chat-header{padding:10px 16px 6px;text-align:center;flex-shrink:0}
+  .greeting{font-size:11px;color:var(--cyan);
+    font-family:'JetBrains Mono',monospace;letter-spacing:2px;text-transform:uppercase}
+  .big-name{font-size:22px;font-weight:700;color:var(--white);
+    text-shadow:0 0 30px var(--cyan-glow)}
 
-  /* Signal meter */
-  .signal-block{
-    width:100%;max-width:340px;
-    padding:12px 16px;margin-bottom:10px;
-    background:var(--surface);border:1px solid var(--grey-dim);
-    border-radius:14px;position:relative;overflow:hidden;
-  }
-  .signal-header{
-    display:flex;align-items:center;justify-content:space-between;
-    margin-bottom:8px;
-  }
-  .signal-title{
-    font-family:'JetBrains Mono',monospace;font-size:10px;
-    color:var(--grey);letter-spacing:2px;text-transform:uppercase;
-  }
-  .signal-pct{
-    font-family:'JetBrains Mono',monospace;font-size:18px;
-    font-weight:700;color:var(--cyan);
-  }
-  .signal-bar{
-    width:100%;height:6px;background:var(--surface-light);
-    border-radius:3px;overflow:hidden;
-  }
-  .signal-fill{
-    width:0%;height:100%;border-radius:3px;
-    background:linear-gradient(90deg,var(--cyan),var(--cyan));
-    transition:width 0.3s ease;
-  }
-  .signal-meta{
-    display:flex;align-items:center;justify-content:space-between;
-    margin-top:6px;
-  }
-  .signal-label{
-    font-family:'JetBrains Mono',monospace;font-size:9px;
-    color:var(--grey-dim);letter-spacing:1px;text-transform:uppercase;
-  }
-  .signal-matches{
-    font-family:'JetBrains Mono',monospace;font-size:9px;
-    color:var(--green);letter-spacing:0.5px;
-  }
-  .signal-matches em{font-style:normal;font-weight:700}
+  /* Signal bar */
+  .signal{margin:6px 16px 0;padding:8px 14px;
+    background:var(--surface);border:1px solid var(--dim);
+    border-radius:12px;flex-shrink:0}
+  .signal-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+  .signal-title{font-family:'JetBrains Mono',monospace;font-size:9px;
+    color:var(--grey);letter-spacing:2px;text-transform:uppercase}
+  .signal-pct{font-family:'JetBrains Mono',monospace;font-size:16px;
+    font-weight:700;color:var(--cyan)}
+  .signal-bar{width:100%;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
+  .signal-fill{width:0;height:100%;border-radius:2px;background:var(--cyan);transition:width .3s}
+  .signal-label{font-family:'JetBrains Mono',monospace;font-size:8px;
+    color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:4px}
 
-  /* Chat conversation area */
-  .chat-area{
-    width:100%;max-width:340px;
-    flex:1;min-height:0;
-    overflow-y:auto;-webkit-overflow-scrolling:touch;
-    margin-bottom:8px;
-    padding:4px 0;
-  }
+  /* Scrollable chat area */
+  .chat-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:10px 16px;min-height:0}
 
-  .chat-bubble{
-    padding:10px 14px;margin-bottom:8px;
-    border-radius:14px;
-    max-width:95%;
-    animation:bubbleIn 0.3s ease both;
-    line-height:1.5;font-size:14px;
-  }
-  .assistant-bubble{
-    background:var(--surface);border:1px solid var(--grey-dim);
-    align-self:flex-start;position:relative;
-    border-top-left-radius:4px;
-  }
-  .user-bubble{
-    background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);
-    margin-left:auto;text-align:right;
-    border-top-right-radius:4px;
-    color:var(--cyan);font-size:13px;font-weight:500;
-    max-width:70%;
-  }
-  .bubble-marker{
-    color:var(--magenta);font-size:10px;
-    margin-right:6px;
-  }
-  .bubble-text{
-    color:var(--white);
-  }
+  .chat-bubble{padding:10px 14px;margin-bottom:8px;border-radius:14px;
+    max-width:90%;line-height:1.5;font-size:14px;animation:bubbleIn .3s ease both}
+  .portal-bubble{background:var(--surface);border:1px solid var(--dim);
+    border-top-left-radius:4px}
+  .user-bubble{background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);
+    margin-left:auto;text-align:right;border-top-right-radius:4px;
+    color:var(--cyan);font-size:13px;font-weight:500;max-width:75%}
+
+  .portal-mark{color:var(--magenta);font-size:10px;margin-right:6px}
+  .bubble-text{color:var(--white)}
   .bubble-text .hl{color:var(--cyan);font-weight:600}
+  .cursor{display:inline-block;width:2px;height:14px;background:var(--cyan);
+    vertical-align:middle;margin-left:2px;animation:blink .8s step-end infinite}
 
-  .typing-cursor{
-    display:inline-block;width:2px;height:14px;
-    background:var(--cyan);vertical-align:middle;
-    margin-left:2px;animation:blink 0.8s step-end infinite;
-  }
+  .thinking .dots{display:inline-flex;gap:2px}
+  .thinking .dots span{color:var(--grey);font-size:20px;font-weight:700;
+    animation:dot 1.2s ease-in-out infinite}
+  .thinking .dots span:nth-child(2){animation-delay:.2s}
+  .thinking .dots span:nth-child(3){animation-delay:.4s}
 
-  /* Thinking dots */
-  .thinking-dots{
-    display:inline-flex;gap:2px;
-  }
-  .thinking-dots span{
-    color:var(--grey);font-size:18px;font-weight:700;
-    animation:dotPulse 1.2s ease-in-out infinite;
-  }
-  .thinking-dots span:nth-child(2){animation-delay:0.2s}
-  .thinking-dots span:nth-child(3){animation-delay:0.4s}
+  /* Suggestions + input area — pinned to bottom */
+  .chat-footer{flex-shrink:0;padding:6px 16px 10px;
+    background:linear-gradient(transparent,var(--void) 20%)}
 
-  /* Response chips */
-  .response-row{
-    display:flex;flex-wrap:wrap;gap:6px;
-    justify-content:center;
-    max-width:340px;margin-bottom:8px;
-    opacity:0;pointer-events:none;
-    transition:opacity 0.4s ease;
-  }
-  .response-row.visible{opacity:1;pointer-events:auto}
+  .suggest-row{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;
+    margin-bottom:6px;opacity:0;pointer-events:none;transition:opacity .3s}
+  .suggest-row.visible{opacity:1;pointer-events:auto}
 
-  .response-chip{
-    padding:8px 14px;
-    font-family:'JetBrains Mono',monospace;
-    font-size:10px;font-weight:500;
+  .suggest-chip{padding:6px 12px;font-family:'JetBrains Mono',monospace;
+    font-size:10px;color:var(--grey);background:var(--surface);
+    border:1px solid var(--dim);border-radius:16px;cursor:pointer;
+    transition:all .2s;letter-spacing:.3px;
+    -webkit-tap-highlight-color:transparent}
+  .suggest-chip:hover,.suggest-chip:active{color:var(--cyan);border-color:var(--cyan)}
+  .suggest-chip:active{transform:scale(0.95)}
+
+  .chat-input-row{display:flex;gap:8px;align-items:center}
+  .chat-input{flex:1;padding:10px 14px;
+    font-family:'Space Grotesk',sans-serif;font-size:14px;
     color:var(--white);background:var(--surface);
-    border:1px solid var(--grey-dim);border-radius:20px;
-    cursor:pointer;transition:all 0.2s;
-    letter-spacing:0.5px;
-    -webkit-tap-highlight-color:transparent;
-  }
-  .response-chip:hover{
-    border-color:var(--cyan);color:var(--cyan);
-  }
-  .response-chip:active{transform:scale(0.95)}
-  .response-chip.cta-chip{
-    color:var(--green);border-color:var(--green-dim);
-    font-weight:700;
-  }
-  .response-chip.cta-chip:hover{
-    border-color:var(--green);
-    box-shadow:0 0 12px var(--green-glow);
-  }
+    border:1px solid var(--dim);border-radius:12px;outline:none;
+    caret-color:var(--cyan);transition:border-color .3s}
+  .chat-input:focus{border-color:var(--cyan);box-shadow:0 0 12px var(--cyan-glow)}
+  .chat-input::placeholder{color:var(--dim);font-size:12px}
+  .chat-input:disabled{opacity:.4}
+
+  .send-btn{width:42px;height:42px;border-radius:12px;border:none;
+    background:var(--cyan);color:var(--void);font-size:18px;font-weight:700;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:all .2s;flex-shrink:0}
+  .send-btn:active{transform:scale(0.92)}
+  .send-btn:disabled{opacity:.3;cursor:default}
 
   /* CTA section */
-  .cta-section{
-    width:100%;max-width:340px;
-    opacity:0;pointer-events:none;
-    transition:opacity 0.5s ease;
-    margin-top:auto;
-    padding-bottom:8px;
-  }
+  .cta-section{flex-shrink:0;padding:0 16px 10px;text-align:center;
+    opacity:0;pointer-events:none;transition:opacity .5s}
   .cta-section.visible{opacity:1;pointer-events:auto}
 
-  .cta-final{
-    display:block;width:100%;padding:14px;
-    font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
-    letter-spacing:1px;text-align:center;
-    color:var(--void);background:var(--green);
-    border:none;border-radius:14px;cursor:pointer;text-decoration:none;
-    box-shadow:0 0 25px var(--green-glow),0 4px 15px rgba(0,0,0,0.3);
-    animation:btnPulse 2.5s ease-in-out infinite;
-    transition:all 0.3s;
-  }
-  .cta-final:active{transform:scale(0.97)}
-  .cta-fine{
-    font-family:'JetBrains Mono',monospace;font-size:9px;
-    color:var(--grey-dim);letter-spacing:1px;text-transform:uppercase;
-    text-align:center;margin-top:6px;
-  }
+  .cta-btn{display:block;width:100%;padding:13px;
+    font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
+    letter-spacing:.5px;text-align:center;text-decoration:none;
+    color:var(--void);background:var(--green);border:none;border-radius:12px;
+    cursor:pointer;transition:all .3s;
+    box-shadow:0 0 20px var(--green-glow)}
+  .cta-btn:active{transform:scale(0.97)}
+  .cta-btn.hot{animation:btnPulse 2s ease-in-out infinite;font-size:14px;font-weight:700}
+  .cta-fine{font-family:'JetBrains Mono',monospace;font-size:8px;
+    color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:5px}
 
-  .proof-bar{
-    display:flex;align-items:center;justify-content:center;gap:6px;
-    margin-top:6px;
-    font-family:'JetBrains Mono',monospace;font-size:9px;
-    color:var(--grey-dim);letter-spacing:1px;
-  }
-  .proof-dot{
-    width:5px;height:5px;background:var(--green);border-radius:50%;
-    animation:proofPulse 1.5s ease-in-out infinite;
-  }
-
-  /* Live activity ticker */
-  .live-ticker{
-    position:fixed;bottom:0;left:0;right:0;
-    background:rgba(5,5,16,0.9);backdrop-filter:blur(8px);
-    border-top:1px solid var(--grey-dim);
-    padding:8px 16px;z-index:50;
-    display:none;
-  }
-  .live-ticker.show{display:flex;align-items:center;gap:8px;animation:slideUp 0.4s ease both}
-  .lt-dot{
-    width:6px;height:6px;background:var(--green);border-radius:50%;
-    animation:proofPulse 1s ease-in-out infinite;flex-shrink:0;
-  }
-  .lt-text{
-    font-family:'JetBrains Mono',monospace;font-size:10px;
-    color:var(--grey);letter-spacing:0.5px;
-    overflow:hidden;white-space:nowrap;
-  }
+  /* Ticker */
+  .live-ticker{position:fixed;bottom:0;left:0;right:0;
+    background:rgba(5,5,16,.92);backdrop-filter:blur(8px);
+    border-top:1px solid var(--dim);padding:7px 14px;z-index:50;display:none}
+  .live-ticker.show{display:flex;align-items:center;gap:8px;animation:slideUp .4s ease both}
+  .lt-dot{width:5px;height:5px;background:var(--green);border-radius:50%;
+    animation:proof 1s ease-in-out infinite;flex-shrink:0}
+  .lt-text{font-family:'JetBrains Mono',monospace;font-size:10px;
+    color:var(--grey);letter-spacing:.5px;overflow:hidden;white-space:nowrap}
   .lt-text em{color:var(--green);font-style:normal}
-  .lt-close{
-    margin-left:auto;font-size:14px;color:var(--grey-dim);
-    cursor:pointer;padding:4px;flex-shrink:0;
-  }
+  .lt-close{margin-left:auto;font-size:14px;color:var(--dim);
+    cursor:pointer;padding:4px;flex-shrink:0}
 
-  /* BG mesh */
-  .mesh{
-    position:fixed;inset:0;pointer-events:none;z-index:0;
+  /* BG */
+  .mesh{position:fixed;inset:0;pointer-events:none;z-index:0;
     background:
-      radial-gradient(ellipse at 20% 30%,rgba(0,212,255,0.04) 0%,transparent 50%),
-      radial-gradient(ellipse at 80% 70%,rgba(224,64,251,0.03) 0%,transparent 50%),
-      radial-gradient(ellipse at 50% 50%,rgba(0,232,90,0.02) 0%,transparent 60%);
-  }
+      radial-gradient(ellipse at 20% 30%,rgba(0,212,255,.04) 0%,transparent 50%),
+      radial-gradient(ellipse at 80% 70%,rgba(224,64,251,.03) 0%,transparent 50%),
+      radial-gradient(ellipse at 50% 50%,rgba(0,232,90,.02) 0%,transparent 60%)}
 
   /* Animations */
-  @keyframes portalSpin{to{transform:rotate(360deg)}}
-  @keyframes eyePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
-  @keyframes breathe{0%,100%{opacity:0.5}50%{opacity:1}}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+  @keyframes breathe{0%,100%{opacity:.5}50%{opacity:1}}
+  @keyframes up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes blink{50%{opacity:0}}
   @keyframes btnPulse{
-    0%,100%{box-shadow:0 0 25px var(--green-glow),0 4px 15px rgba(0,0,0,0.3)}
-    50%{box-shadow:0 0 40px rgba(0,232,90,0.25),0 4px 20px rgba(0,0,0,0.3)}
-  }
-  @keyframes proofPulse{0%,100%{opacity:1}50%{opacity:0.3}}
+    0%,100%{box-shadow:0 0 20px var(--green-glow)}
+    50%{box-shadow:0 0 40px rgba(0,232,90,.3)}}
+  @keyframes proof{0%,100%{opacity:1}50%{opacity:.3}}
   @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-  @keyframes chipPop{
-    0%{transform:scale(0.8);opacity:0}
-    50%{transform:scale(1.05)}
-    100%{transform:scale(1);opacity:1}
-  }
-  @keyframes bubbleIn{
-    from{opacity:0;transform:translateY(8px)}
-    to{opacity:1;transform:translateY(0)}
-  }
-  @keyframes dotPulse{
-    0%,80%,100%{opacity:0.2;transform:scale(0.8)}
-    40%{opacity:1;transform:scale(1.2)}
-  }
+  @keyframes pop{0%{transform:scale(.8);opacity:0}50%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
+  @keyframes bubbleIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes dot{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1.2)}}
 
-  @media(max-height:650px){
-    .user-name-big{font-size:24px}
-    .signal-block{padding:10px 14px;margin-bottom:8px}
+  @media(max-height:620px){
+    .big-name{font-size:18px}
+    .signal{padding:6px 12px;margin:4px 16px 0}
+    .signal-pct{font-size:14px}
     .chat-bubble{padding:8px 12px;font-size:13px;margin-bottom:6px}
-    .cta-final{padding:12px;font-size:13px}
-    .name-prompt{font-size:16px;margin-bottom:10px}
-    .name-input{padding:10px 14px;font-size:16px}
-    .chip-grid{margin-bottom:10px}
-    .greeting{margin-top:4px}
+    .chat-header{padding:6px 16px 2px}
+    .chat-footer{padding:4px 14px 8px}
+    .cta-btn{padding:10px;font-size:12px}
   }
 </style>
 </head>
@@ -479,27 +280,25 @@
 
 <div class="screen">
 
-  <!-- STAGE 0: PORTAL -->
+  <!-- PORTAL -->
   <div class="stage-0" id="stage0">
     <div class="portal" id="portal">
       <div class="portal-eye">&#x1F441;</div>
     </div>
-    <div class="portal-text">tap to begin</div>
+    <div class="portal-sub">tap to begin</div>
   </div>
 
-  <!-- STAGE 1: PICKS -->
+  <!-- PICKS -->
   <div class="stage-1" id="stage1">
-    <div class="name-prompt">
-      Before we start &mdash;<br><em>what do they call you?</em>
-    </div>
-    <div class="name-input-wrap">
+    <div class="prompt">Before we start &mdash;<br><em>what do they call you?</em></div>
+    <div class="input-wrap">
       <input class="name-input" id="nameInput" type="text"
         placeholder="your name" maxlength="20"
         autocomplete="off" autocapitalize="words" spellcheck="false">
     </div>
 
-    <div class="picks-label">looking for</div>
-    <div class="chip-grid" id="interestChips">
+    <div class="label">looking for</div>
+    <div class="chips" id="interestChips">
       <button class="pick-chip" data-value="Healthcare">Healthcare</button>
       <button class="pick-chip" data-value="Warehouse">Warehouse</button>
       <button class="pick-chip" data-value="CDL">CDL / Driving</button>
@@ -510,73 +309,68 @@
       <button class="pick-chip" data-value="Anything">Anything</button>
     </div>
 
-    <div class="picks-label">where</div>
-    <div class="chip-grid" id="locationChips">
+    <div class="label">where</div>
+    <div class="chips" id="locationChips">
       <button class="pick-chip" data-value="Remote">Remote</button>
       <button class="pick-chip" data-value="Anywhere">Anywhere</button>
     </div>
-    <div class="loc-input-wrap">
-      <input class="loc-input" id="locationInput" type="text"
-        placeholder="or type your city / state"
-        maxlength="40" autocomplete="off" spellcheck="false">
-    </div>
+    <input class="loc-input" id="locationInput" type="text"
+      placeholder="or type your city / state"
+      maxlength="40" autocomplete="off" spellcheck="false">
 
-    <button class="name-go" id="goBtn" disabled>GO &#x2192;</button>
-    <button class="name-skip" id="skipBtn">skip everything &#x2192;</button>
+    <button class="go-btn" id="goBtn" disabled>GO &#x2192;</button>
+    <button class="skip-btn" id="skipBtn">skip everything &#x2192;</button>
   </div>
 
-  <!-- STAGE 2: PROCESSING -->
+  <!-- SCAN -->
   <div class="stage-2" id="stage2">
     <div class="scan-ring"></div>
-    <div class="scan-lines" id="scanLines">
+    <div class="scan-lines">
       <div class="scan-line" id="sl0">scanning the market...</div>
       <div class="scan-line" id="sl1">mapping opportunities...</div>
       <div class="scan-line" id="sl2">filtering listings...</div>
       <div class="scan-line" id="sl3">detecting ghost postings...</div>
-      <div class="scan-line" id="sl4">calibrating your signal...</div>
+      <div class="scan-line" id="sl4">calibrating signal...</div>
     </div>
   </div>
 
-  <!-- STAGE 3: THE REVEAL — conversation loop -->
+  <!-- CHAT -->
   <div class="stage-3" id="stage3">
-    <div class="greeting">signal for</div>
-    <div class="user-name-big" id="bigName"></div>
+    <div class="chat-header">
+      <div class="greeting">signal for</div>
+      <div class="big-name" id="bigName"></div>
+    </div>
 
-    <!-- Signal meter -->
-    <div class="signal-block">
-      <div class="signal-header">
-        <span class="signal-title">match signal</span>
+    <div class="signal">
+      <div class="signal-top">
+        <span class="signal-title">signal</span>
         <span class="signal-pct" id="signalPct">0%</span>
       </div>
-      <div class="signal-bar">
-        <div class="signal-fill" id="signalFill"></div>
-      </div>
-      <div class="signal-meta">
-        <span class="signal-label" id="signalLabel">initializing</span>
-        <span class="signal-matches"><em id="matchCount">0</em> matches found</span>
+      <div class="signal-bar"><div class="signal-fill" id="signalFill"></div></div>
+      <div class="signal-label" id="signalLabel">initializing</div>
+    </div>
+
+    <div class="chat-area" id="chatArea"></div>
+
+    <div class="chat-footer">
+      <div class="suggest-row" id="suggestRow"></div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chatInput" type="text"
+          placeholder="type something..."
+          maxlength="200" autocomplete="off" spellcheck="false" disabled>
+        <button class="send-btn" id="chatSend" disabled>&#x2191;</button>
       </div>
     </div>
 
-    <!-- Chat conversation -->
-    <div class="chat-area" id="aiMsg"></div>
-
-    <!-- Dynamic response chips -->
-    <div class="response-row" id="responseRow"></div>
-
-    <!-- CTA section — appears after turn 2 -->
     <div class="cta-section" id="ctaSection">
-      <a class="cta-final" id="ctaBtn" href="#">SHOW ME REAL JOBS &#x2192;</a>
-      <div class="cta-fine">no accounts &#xb7; no data &#xb7; no games</div>
-      <div class="proof-bar">
-        <span class="proof-dot"></span>
-        <span>&#x25CA; verified listings active now</span>
-      </div>
+      <button class="cta-btn" id="ctaBtn">See what&#x2019;s out there &#x2192;</button>
+      <div class="cta-fine">no accounts &#xb7; no data stored &#xb7; verified listings</div>
     </div>
   </div>
 
 </div>
 
-<!-- Live activity ticker -->
+<!-- Ticker -->
 <div class="live-ticker" id="liveTicker">
   <div class="lt-dot"></div>
   <div class="lt-text" id="ltText"></div>
@@ -587,6 +381,5 @@
   window.__WORKER_URL__ = 'https://recursive-marketing-worker.jethomasphd.workers.dev';
 </script>
 <script src="app.js"></script>
-
 </body>
 </html>

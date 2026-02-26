@@ -7,212 +7,98 @@
 <title>&#x25CA; Exit</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --void: #050510;
-    --white: #f0f0f8;
-    --grey: #8888aa;
-    --grey-dim: #4a4a6a;
-    --gold: #ffd740;
-    --green: #00e85a;
-    --green-glow: rgba(0,232,90,0.12);
-    --cyan: #00d4ff;
-  }
+  :root{--void:#050510;--white:#f0f0f8;--grey:#8888aa;--dim:#4a4a6a;
+    --gold:#ffd740;--green:#00e85a;--cyan:#00d4ff}
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{
-    height:100%;overflow:hidden;
-    background:var(--void);color:var(--white);
-    font-family:'Space Grotesk',sans-serif;
-  }
+  html,body{height:100%;overflow:hidden;background:var(--void);
+    color:var(--white);font-family:'Space Grotesk',sans-serif}
 
-  .seal{
-    height:100dvh;width:100%;
-    display:flex;flex-direction:column;
-    align-items:center;justify-content:center;
-    text-align:center;padding:20px;
-    position:relative;
-  }
+  .seal{height:100dvh;width:100%;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;
+    padding:20px;position:relative}
 
-  .seal-sigil{
-    font-size:56px;margin-bottom:16px;
-    opacity:0;animation:fadeIn 0.5s 0.2s ease both;
-    color:var(--cyan);
-  }
-
-  .seal-name{
-    font-size:20px;font-weight:600;color:var(--white);
-    margin-bottom:8px;
-    opacity:0;animation:fadeIn 0.4s 0.4s ease both;
-    text-shadow:0 0 20px rgba(0,212,255,0.15);
-  }
-
-  .seal-signal{
-    display:flex;align-items:center;gap:8px;
-    margin-bottom:12px;
-    opacity:0;animation:fadeIn 0.4s 0.5s ease both;
-  }
-  .seal-signal-label{
-    font-family:'JetBrains Mono',monospace;font-size:10px;
-    color:var(--grey);letter-spacing:1px;text-transform:uppercase;
-  }
-  .seal-signal-pct{
-    font-family:'JetBrains Mono',monospace;font-size:18px;
-    font-weight:700;color:var(--green);
-  }
-  .seal-signal-matches{
-    font-family:'JetBrains Mono',monospace;font-size:10px;
-    color:var(--grey-dim);letter-spacing:0.5px;
-  }
-
-  .seal-line{
-    font-size:16px;color:var(--gold);
-    font-style:italic;
+  .sigil{font-size:56px;margin-bottom:16px;color:var(--cyan);
+    opacity:0;animation:in .5s .2s ease both}
+  .name{font-size:20px;font-weight:600;margin-bottom:8px;
+    opacity:0;animation:in .4s .4s ease both;
+    text-shadow:0 0 20px rgba(0,212,255,.15)}
+  .sig-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;
+    opacity:0;animation:in .4s .5s ease both}
+  .sig-label{font-family:'JetBrains Mono',monospace;font-size:10px;
+    color:var(--grey);letter-spacing:1px;text-transform:uppercase}
+  .sig-val{font-family:'JetBrains Mono',monospace;font-size:18px;
+    font-weight:700;color:var(--green)}
+  .line{font-size:16px;color:var(--gold);font-style:italic;
     max-width:320px;line-height:1.5;
-    opacity:0;animation:fadeIn 0.5s 0.6s ease both;
-    text-shadow:0 0 15px rgba(255,215,64,0.1);
-  }
-
-  .seal-sub{
-    font-size:10px;color:var(--grey-dim);
-    font-family:'JetBrains Mono',monospace;
-    letter-spacing:2px;text-transform:uppercase;
-    margin-top:20px;
-    opacity:0;animation:fadeIn 0.4s 0.9s ease both;
-  }
-
-  .seal-bar{
-    position:absolute;bottom:0;left:0;right:0;
-    height:3px;background:var(--grey-dim);
-    overflow:hidden;
-  }
-  .seal-bar-fill{
-    height:100%;width:0;
+    opacity:0;animation:in .5s .6s ease both;
+    text-shadow:0 0 15px rgba(255,215,64,.1)}
+  .sub{font-size:10px;color:var(--dim);font-family:'JetBrains Mono',monospace;
+    letter-spacing:2px;text-transform:uppercase;margin-top:20px;
+    opacity:0;animation:in .4s .9s ease both}
+  .bar{position:absolute;bottom:0;left:0;right:0;height:3px;
+    background:var(--dim);overflow:hidden}
+  .bar-fill{height:100%;width:0;
     background:linear-gradient(90deg,var(--cyan),var(--green),var(--gold));
-    animation:fillBar 1.8s 0.3s ease-in-out both;
-  }
+    animation:fill 1.8s .3s ease-in-out both}
 
-  @keyframes fadeIn{
-    from{opacity:0;transform:translateY(8px)}
-    to{opacity:1;transform:translateY(0)}
-  }
-  @keyframes fillBar{
-    from{width:0}
-    to{width:100%}
-  }
+  @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fill{from{width:0}to{width:100%}}
 </style>
 </head>
 <body>
-
 <div class="seal">
-  <div class="seal-sigil">&#x25CA;</div>
-  <div class="seal-name" id="sealName"></div>
-  <div class="seal-signal" id="sealSignal">
-    <span class="seal-signal-label">signal</span>
-    <span class="seal-signal-pct" id="sealPct"></span>
-    <span class="seal-signal-matches" id="sealMatches"></span>
+  <div class="sigil">&#x25CA;</div>
+  <div class="name" id="sealName"></div>
+  <div class="sig-row" id="sigRow">
+    <span class="sig-label">signal</span>
+    <span class="sig-val" id="sigVal"></span>
   </div>
-  <div class="seal-line" id="sealLine">If the market is a maze, you are the knife.</div>
-  <div class="seal-sub" id="sealSub">redirecting to real jobs...</div>
-  <div class="seal-bar"><div class="seal-bar-fill"></div></div>
+  <div class="line" id="sealLine">If the market is a maze, you are the knife.</div>
+  <div class="sub">redirecting to real jobs...</div>
+  <div class="bar"><div class="bar-fill"></div></div>
 </div>
 
 <script>
 (function () {
-  'use strict';
-
   var FALLBACK_URL = 'https://jobs.best-jobs-online.com/jobs';
-  var FALLBACK_INTEREST = 'jobs';
-  var FALLBACK_LOCATION = 'near me';
-  var CONFIG_TIMEOUT = 500;
-  var SEAL_DURATION = 2000;
+  var p = new URLSearchParams(window.location.search);
+  var interest = p.get('interest') || 'jobs';
+  var location = p.get('location') || 'near me';
+  var name = p.get('name') || '';
+  var sig = p.get('signal') || '';
 
-  // Parse query params
-  var params = new URLSearchParams(window.location.search);
-  var interest = params.get('interest') || FALLBACK_INTEREST;
-  var location = params.get('location') || FALLBACK_LOCATION;
-  var name = params.get('name') || '';
-  var signal = params.get('signal') || '';
-  var matches = params.get('matches') || '';
+  document.getElementById('sealName').textContent =
+    name && name !== 'friend' ? 'You crossed the gate, ' + name + '.' : 'You crossed the gate.';
 
-  // Show name if provided
-  var nameEl = document.getElementById('sealName');
-  if (name && name !== 'friend') {
-    nameEl.textContent = 'You crossed the gate, ' + name + '.';
+  if (sig) {
+    document.getElementById('sigVal').textContent = sig + '%';
   } else {
-    nameEl.textContent = 'You crossed the gate.';
+    document.getElementById('sigRow').style.display = 'none';
   }
 
-  // Show signal data if available
-  var signalEl = document.getElementById('sealSignal');
-  var pctEl = document.getElementById('sealPct');
-  var matchesEl = document.getElementById('sealMatches');
-  if (signal && pctEl) {
-    pctEl.textContent = signal + '%';
-    matchesEl.textContent = matches ? '\u00b7 ' + matches + ' precision matches' : '';
-  } else {
-    signalEl.style.display = 'none';
-  }
-
-  // Fetch config with hard timeout
   function loadConfig() {
     return new Promise(function (resolve) {
-      var controller;
-      var timeoutId;
-
-      try {
-        controller = new AbortController();
-        timeoutId = setTimeout(function () { controller.abort(); }, CONFIG_TIMEOUT);
-      } catch (e) { /* No AbortController */ }
-
-      var opts = {};
-      if (controller) opts.signal = controller.signal;
-
-      fetch('exit-config.json', opts)
-        .then(function (res) {
-          if (timeoutId) clearTimeout(timeoutId);
-          return res.json();
-        })
-        .then(resolve)
-        .catch(function () {
-          if (timeoutId) clearTimeout(timeoutId);
-          resolve(null);
-        });
+      var c; try { c = new AbortController(); setTimeout(function(){c.abort()},500); } catch(e){}
+      fetch('exit-config.json', c ? {signal:c.signal} : {})
+        .then(function(r){return r.json()}).then(resolve)
+        .catch(function(){resolve(null)});
     });
   }
 
-  function buildUrl(config) {
-    if (config && config.redirectTemplate) {
-      return config.redirectTemplate
-        .replace('{{interest}}', encodeURIComponent(interest))
-        .replace('{{location}}', encodeURIComponent(location));
-    }
-    return FALLBACK_URL + '?q=' + encodeURIComponent(interest) + '&l=' + encodeURIComponent(location);
-  }
-
   async function run() {
-    var config = await loadConfig();
-
-    if (config) {
-      if (config.finalLine) {
-        document.getElementById('sealLine').textContent = config.finalLine;
-      }
-      if (interest === FALLBACK_INTEREST && config.fallbackInterest) {
-        interest = config.fallbackInterest;
-      }
-      if (location === FALLBACK_LOCATION && config.fallbackLocation) {
-        location = config.fallbackLocation;
-      }
+    var cfg = await loadConfig();
+    if (cfg) {
+      if (cfg.finalLine) document.getElementById('sealLine').textContent = cfg.finalLine;
+      if (interest === 'jobs' && cfg.fallbackInterest) interest = cfg.fallbackInterest;
+      if (location === 'near me' && cfg.fallbackLocation) location = cfg.fallbackLocation;
     }
-
-    var redirectUrl = buildUrl(config);
-
-    setTimeout(function () {
-      window.location.href = redirectUrl;
-    }, SEAL_DURATION);
+    var url = cfg && cfg.redirectTemplate
+      ? cfg.redirectTemplate.replace('{{interest}}',encodeURIComponent(interest)).replace('{{location}}',encodeURIComponent(location))
+      : FALLBACK_URL + '?q=' + encodeURIComponent(interest) + '&l=' + encodeURIComponent(location);
+    setTimeout(function(){window.location.href=url},2000);
   }
-
   run();
 })();
 </script>
-
 </body>
 </html>
