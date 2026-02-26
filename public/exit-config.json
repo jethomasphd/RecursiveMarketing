@@ -1,0 +1,7 @@
+{
+  "redirectTemplate": "https://jobs.best-jobs-online.com/jobs?q={{interest}}&l={{location}}",
+  "fallbackInterest": "jobs",
+  "fallbackLocation": "near me",
+  "title": "Exit",
+  "finalLine": "Not an answer box. A bridge. Go."
+}
