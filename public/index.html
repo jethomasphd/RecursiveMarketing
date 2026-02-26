@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#050510">
-<title>◊ The Gate</title>
+<title>&#x25CA; The Gate</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -112,7 +112,7 @@
   .chip-grid{
     display:flex;flex-wrap:wrap;gap:6px;
     justify-content:center;
-    max-width:340px;margin-bottom:16px;
+    max-width:340px;margin-bottom:12px;
   }
 
   .pick-chip{
@@ -129,6 +129,39 @@
     color:var(--cyan);border-color:var(--cyan);
     box-shadow:0 0 15px var(--cyan-glow);
   }
+
+  /* Detected location chip */
+  .detected-chip{
+    border-color:var(--green-dim);color:var(--green);
+    position:relative;
+  }
+  .detected-chip.selected{
+    border-color:var(--green);color:var(--green);
+    box-shadow:0 0 15px var(--green-glow);
+  }
+  .detected-chip.auto-detected{
+    animation:chipPop 0.4s ease both;
+  }
+  .detect-icon{font-size:10px}
+
+  /* Location text input */
+  .loc-input-wrap{
+    width:100%;max-width:280px;margin-bottom:16px;
+  }
+  .loc-input{
+    width:100%;padding:8px 14px;
+    font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:400;
+    color:var(--white);background:var(--surface);
+    border:1px solid var(--grey-dim);border-radius:10px;
+    text-align:center;outline:none;
+    transition:border-color 0.3s,box-shadow 0.3s;
+    caret-color:var(--cyan);
+  }
+  .loc-input:focus{
+    border-color:var(--cyan);
+    box-shadow:0 0 12px var(--cyan-glow);
+  }
+  .loc-input::placeholder{color:var(--grey-dim);font-size:11px}
 
   .name-go{
     width:100%;max-width:280px;padding:14px;
@@ -180,132 +213,169 @@
   .scan-line.done{color:var(--cyan);opacity:1}
   .scan-line .check{color:var(--green);margin-right:6px}
 
-  /* ===== STAGE 3: THE REVEAL ===== */
+  /* ===== STAGE 3: THE REVEAL — now a conversation ===== */
   .stage-3{
     display:none;flex-direction:column;align-items:center;
-    justify-content:center;
     width:100%;height:100%;position:absolute;inset:0;
-    z-index:10;padding:20px;
+    z-index:10;padding:12px 16px;
     overflow-y:auto;-webkit-overflow-scrolling:touch;
   }
   .stage-3.active{display:flex;animation:fadeUp 0.6s ease both}
 
   .greeting{
-    font-size:14px;color:var(--cyan);
+    font-size:13px;color:var(--cyan);
     font-family:'JetBrains Mono',monospace;
     letter-spacing:2px;text-transform:uppercase;
-    margin-bottom:8px;
+    margin-top:8px;margin-bottom:4px;
   }
   .user-name-big{
-    font-size:34px;font-weight:700;color:var(--white);
-    margin-bottom:4px;text-align:center;
+    font-size:28px;font-weight:700;color:var(--white);
+    margin-bottom:8px;text-align:center;
     text-shadow:0 0 30px var(--cyan-glow);
   }
 
-  /* Money counter */
-  .counter-block{
-    text-align:center;margin:12px 0 16px;
-    padding:18px 24px;
+  /* Signal meter */
+  .signal-block{
+    width:100%;max-width:340px;
+    padding:12px 16px;margin-bottom:10px;
     background:var(--surface);border:1px solid var(--grey-dim);
-    border-radius:16px;width:100%;max-width:320px;
-    position:relative;overflow:hidden;
+    border-radius:14px;position:relative;overflow:hidden;
   }
-  .counter-block::before{
-    content:'';position:absolute;top:0;left:0;right:0;height:2px;
-    background:linear-gradient(90deg,var(--cyan),var(--green),var(--gold));
+  .signal-header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:8px;
   }
-  .counter-label{
+  .signal-title{
     font-family:'JetBrains Mono',monospace;font-size:10px;
     color:var(--grey);letter-spacing:2px;text-transform:uppercase;
-    margin-bottom:6px;
   }
-  .counter-num{
-    font-family:'JetBrains Mono',monospace;font-size:42px;
-    font-weight:700;color:var(--green);line-height:1;
-    text-shadow:0 0 20px var(--green-glow);
+  .signal-pct{
+    font-family:'JetBrains Mono',monospace;font-size:18px;
+    font-weight:700;color:var(--cyan);
   }
-  .counter-per{
-    font-family:'JetBrains Mono',monospace;font-size:11px;
-    color:var(--grey);margin-top:4px;letter-spacing:1px;
+  .signal-bar{
+    width:100%;height:6px;background:var(--surface-light);
+    border-radius:3px;overflow:hidden;
+  }
+  .signal-fill{
+    width:0%;height:100%;border-radius:3px;
+    background:linear-gradient(90deg,var(--cyan),var(--cyan));
+    transition:width 0.3s ease;
+  }
+  .signal-meta{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-top:6px;
+  }
+  .signal-label{
+    font-family:'JetBrains Mono',monospace;font-size:9px;
+    color:var(--grey-dim);letter-spacing:1px;text-transform:uppercase;
+  }
+  .signal-matches{
+    font-family:'JetBrains Mono',monospace;font-size:9px;
+    color:var(--green);letter-spacing:0.5px;
+  }
+  .signal-matches em{font-style:normal;font-weight:700}
+
+  /* Chat conversation area */
+  .chat-area{
+    width:100%;max-width:340px;
+    flex:1;min-height:0;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+    margin-bottom:8px;
+    padding:4px 0;
   }
 
-  /* AI message */
-  .ai-msg{
+  .chat-bubble{
+    padding:10px 14px;margin-bottom:8px;
+    border-radius:14px;
+    max-width:95%;
+    animation:bubbleIn 0.3s ease both;
+    line-height:1.5;font-size:14px;
+  }
+  .assistant-bubble{
     background:var(--surface);border:1px solid var(--grey-dim);
-    border-radius:14px;padding:14px 16px;
-    margin-bottom:14px;width:100%;max-width:340px;
-    position:relative;
+    align-self:flex-start;position:relative;
+    border-top-left-radius:4px;
   }
-  .ai-msg::before{
-    content:'✦';position:absolute;top:-8px;left:14px;
-    background:var(--void);padding:0 6px;
-    font-size:12px;color:var(--magenta);
+  .user-bubble{
+    background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);
+    margin-left:auto;text-align:right;
+    border-top-right-radius:4px;
+    color:var(--cyan);font-size:13px;font-weight:500;
+    max-width:70%;
   }
-  .ai-msg-text{
-    font-size:15px;color:var(--white);line-height:1.55;
+  .bubble-marker{
+    color:var(--magenta);font-size:10px;
+    margin-right:6px;
   }
-  .ai-msg-text .hl{color:var(--cyan);font-weight:600}
+  .bubble-text{
+    color:var(--white);
+  }
+  .bubble-text .hl{color:var(--cyan);font-weight:600}
+
   .typing-cursor{
     display:inline-block;width:2px;height:14px;
     background:var(--cyan);vertical-align:middle;
     margin-left:2px;animation:blink 0.8s step-end infinite;
   }
 
+  /* Thinking dots */
+  .thinking-dots{
+    display:inline-flex;gap:2px;
+  }
+  .thinking-dots span{
+    color:var(--grey);font-size:18px;font-weight:700;
+    animation:dotPulse 1.2s ease-in-out infinite;
+  }
+  .thinking-dots span:nth-child(2){animation-delay:0.2s}
+  .thinking-dots span:nth-child(3){animation-delay:0.4s}
+
   /* Response chips */
   .response-row{
     display:flex;flex-wrap:wrap;gap:6px;
     justify-content:center;
-    max-width:340px;margin-bottom:14px;
+    max-width:340px;margin-bottom:8px;
     opacity:0;pointer-events:none;
-    transition:opacity 0.5s ease;
+    transition:opacity 0.4s ease;
   }
   .response-row.visible{opacity:1;pointer-events:auto}
 
   .response-chip{
-    padding:7px 12px;
+    padding:8px 14px;
     font-family:'JetBrains Mono',monospace;
     font-size:10px;font-weight:500;
     color:var(--white);background:var(--surface);
-    border:1px solid var(--grey-dim);border-radius:8px;
+    border:1px solid var(--grey-dim);border-radius:20px;
     cursor:pointer;transition:all 0.2s;
     letter-spacing:0.5px;
     -webkit-tap-highlight-color:transparent;
   }
+  .response-chip:hover{
+    border-color:var(--cyan);color:var(--cyan);
+  }
   .response-chip:active{transform:scale(0.95)}
-  .response-chip.active{
-    color:var(--green);border-color:var(--green);
+  .response-chip.cta-chip{
+    color:var(--green);border-color:var(--green-dim);
+    font-weight:700;
+  }
+  .response-chip.cta-chip:hover{
+    border-color:var(--green);
     box-shadow:0 0 12px var(--green-glow);
   }
 
-  /* Pain stats — compact */
-  .pain-row{
-    display:flex;gap:6px;margin-bottom:14px;
+  /* CTA section */
+  .cta-section{
     width:100%;max-width:340px;
+    opacity:0;pointer-events:none;
+    transition:opacity 0.5s ease;
+    margin-top:auto;
+    padding-bottom:8px;
   }
-  .pain-chip{
-    flex:1;background:var(--surface);
-    border:1px solid rgba(221,0,0,0.15);
-    border-radius:10px;padding:8px 6px;text-align:center;
-  }
-  .pain-chip .n{
-    font-family:'JetBrains Mono',monospace;font-size:16px;
-    font-weight:700;color:#ff4757;line-height:1;
-  }
-  .pain-chip .l{
-    font-size:9px;color:var(--grey);margin-top:3px;line-height:1.2;
-  }
+  .cta-section.visible{opacity:1;pointer-events:auto}
 
-  /* Bridge */
-  .bridge-line{
-    font-size:16px;font-style:italic;color:var(--gold);
-    text-align:center;margin-bottom:14px;
-    text-shadow:0 0 15px rgba(255,215,64,0.1);
-  }
-
-  /* CTA */
   .cta-final{
-    display:block;width:100%;max-width:320px;padding:16px;
-    font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;
+    display:block;width:100%;padding:14px;
+    font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;
     letter-spacing:1px;text-align:center;
     color:var(--void);background:var(--green);
     border:none;border-radius:14px;cursor:pointer;text-decoration:none;
@@ -317,12 +387,12 @@
   .cta-fine{
     font-family:'JetBrains Mono',monospace;font-size:9px;
     color:var(--grey-dim);letter-spacing:1px;text-transform:uppercase;
-    text-align:center;margin-top:8px;
+    text-align:center;margin-top:6px;
   }
 
   .proof-bar{
     display:flex;align-items:center;justify-content:center;gap:6px;
-    margin-top:10px;
+    margin-top:6px;
     font-family:'JetBrains Mono',monospace;font-size:9px;
     color:var(--grey-dim);letter-spacing:1px;
   }
@@ -377,19 +447,29 @@
   }
   @keyframes proofPulse{0%,100%{opacity:1}50%{opacity:0.3}}
   @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes chipPop{
+    0%{transform:scale(0.8);opacity:0}
+    50%{transform:scale(1.05)}
+    100%{transform:scale(1);opacity:1}
+  }
+  @keyframes bubbleIn{
+    from{opacity:0;transform:translateY(8px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  @keyframes dotPulse{
+    0%,80%,100%{opacity:0.2;transform:scale(0.8)}
+    40%{opacity:1;transform:scale(1.2)}
+  }
 
   @media(max-height:650px){
-    .user-name-big{font-size:28px}
-    .counter-block{padding:14px 20px;margin:8px 0 12px}
-    .counter-num{font-size:34px}
-    .ai-msg{padding:12px 14px;margin-bottom:10px}
-    .ai-msg-text{font-size:14px}
-    .pain-row{margin-bottom:10px}
-    .bridge-line{font-size:14px;margin-bottom:10px}
-    .cta-final{padding:14px;font-size:14px}
+    .user-name-big{font-size:24px}
+    .signal-block{padding:10px 14px;margin-bottom:8px}
+    .chat-bubble{padding:8px 12px;font-size:13px;margin-bottom:6px}
+    .cta-final{padding:12px;font-size:13px}
     .name-prompt{font-size:16px;margin-bottom:10px}
     .name-input{padding:10px 14px;font-size:16px}
-    .chip-grid{margin-bottom:12px}
+    .chip-grid{margin-bottom:10px}
+    .greeting{margin-top:4px}
   }
 </style>
 </head>
@@ -410,7 +490,7 @@
   <!-- STAGE 1: PICKS -->
   <div class="stage-1" id="stage1">
     <div class="name-prompt">
-      Before we start —<br><em>what do they call you?</em>
+      Before we start &mdash;<br><em>what do they call you?</em>
     </div>
     <div class="name-input-wrap">
       <input class="name-input" id="nameInput" type="text"
@@ -432,11 +512,13 @@
 
     <div class="picks-label">where</div>
     <div class="chip-grid" id="locationChips">
-      <button class="pick-chip" data-value="Near me">Near me</button>
-      <button class="pick-chip" data-value="My city">My city</button>
-      <button class="pick-chip" data-value="My state">My state</button>
       <button class="pick-chip" data-value="Remote">Remote</button>
       <button class="pick-chip" data-value="Anywhere">Anywhere</button>
+    </div>
+    <div class="loc-input-wrap">
+      <input class="loc-input" id="locationInput" type="text"
+        placeholder="or type your city / state"
+        maxlength="40" autocomplete="off" spellcheck="false">
     </div>
 
     <button class="name-go" id="goBtn" disabled>GO &#x2192;</button>
@@ -451,67 +533,45 @@
       <div class="scan-line" id="sl1">mapping opportunities...</div>
       <div class="scan-line" id="sl2">filtering listings...</div>
       <div class="scan-line" id="sl3">detecting ghost postings...</div>
-      <div class="scan-line" id="sl4">calibrating your bridge...</div>
+      <div class="scan-line" id="sl4">calibrating your signal...</div>
     </div>
   </div>
 
-  <!-- STAGE 3: REVEAL -->
+  <!-- STAGE 3: THE REVEAL — conversation loop -->
   <div class="stage-3" id="stage3">
-    <div style="flex:1;min-height:8px"></div>
-
-    <div class="greeting">result for</div>
+    <div class="greeting">signal for</div>
     <div class="user-name-big" id="bigName"></div>
 
-    <div class="counter-block">
-      <div class="counter-label">estimated weekly earning potential</div>
-      <div class="counter-num" id="counterNum">$0</div>
-      <div class="counter-per" id="counterContext">in your area</div>
-    </div>
-
-    <div class="ai-msg">
-      <div class="ai-msg-text" id="aiMsg">
-        <span class="typing-cursor"></span>
+    <!-- Signal meter -->
+    <div class="signal-block">
+      <div class="signal-header">
+        <span class="signal-title">match signal</span>
+        <span class="signal-pct" id="signalPct">0%</span>
+      </div>
+      <div class="signal-bar">
+        <div class="signal-fill" id="signalFill"></div>
+      </div>
+      <div class="signal-meta">
+        <span class="signal-label" id="signalLabel">initializing</span>
+        <span class="signal-matches"><em id="matchCount">0</em> matches found</span>
       </div>
     </div>
 
-    <div class="response-row" id="responseRow">
-      <button class="response-chip" data-action="default">Show me jobs</button>
-      <button class="response-chip" data-action="remote">Make it remote</button>
-      <button class="response-chip" data-action="highpay">Higher pay</button>
-      <button class="response-chip" data-action="entry">Entry-level</button>
-      <button class="response-chip" data-action="night">Night shift</button>
-    </div>
+    <!-- Chat conversation -->
+    <div class="chat-area" id="aiMsg"></div>
 
-    <div class="pain-row">
-      <div class="pain-chip">
-        <div class="n">1 in 3</div>
-        <div class="l">Ghost jobs</div>
-      </div>
-      <div class="pain-chip">
-        <div class="n">61%</div>
-        <div class="l">Ghosted</div>
-      </div>
-      <div class="pain-chip">
-        <div class="n">180</div>
-        <div class="l">Apps per hire</div>
-      </div>
-      <div class="pain-chip">
-        <div class="n">3&#xd7;</div>
-        <div class="l">More scams</div>
+    <!-- Dynamic response chips -->
+    <div class="response-row" id="responseRow"></div>
+
+    <!-- CTA section — appears after turn 2 -->
+    <div class="cta-section" id="ctaSection">
+      <a class="cta-final" id="ctaBtn" href="#">SHOW ME REAL JOBS &#x2192;</a>
+      <div class="cta-fine">no accounts &#xb7; no data &#xb7; no games</div>
+      <div class="proof-bar">
+        <span class="proof-dot"></span>
+        <span>&#x25CA; verified listings active now</span>
       </div>
     </div>
-
-    <div class="bridge-line">Not a search engine. A bridge.</div>
-
-    <a class="cta-final" id="ctaBtn" href="#">SHOW ME REAL JOBS &#x2192;</a>
-    <div class="cta-fine">no accounts &#xb7; no data &#xb7; no games</div>
-
-    <div class="proof-bar">
-      <span class="proof-dot"></span>
-      <span>&#x25CA; verified listings active now</span>
-    </div>
-
-    <div style="flex:1;min-height:8px"></div>
   </div>
 
 </div>
@@ -524,8 +584,6 @@
 </div>
 
 <script>
-  // Worker URL — set this to your deployed Cloudflare Worker
-  // e.g. 'https://recursive-marketing-worker.your-subdomain.workers.dev'
   window.__WORKER_URL__ = 'https://recursive-marketing-worker.jethomasphd.workers.dev';
 </script>
 <script src="app.js"></script>
