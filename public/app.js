@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-// THE SPIRAL v4 — Real federal jobs. Real conversation. Real magic.
-// USAJobs data flows through the portal voice.
+// THE SPIRAL v5 — Intelligent job matchmaker.
+// Claude + USAJobs → converge on a specific job application.
 // ═══════════════════════════════════════════════════════════════
 
 (function () {
@@ -8,7 +8,7 @@
 
   // ─── CONFIG ──────────────────────────────────────────────────
   var WORKER_URL = window.__WORKER_URL__ || '';
-  var WORKER_TIMEOUT_MS = 15000; // longer — USAJobs + Claude
+  var WORKER_TIMEOUT_MS = 20000;
 
   // ─── STATES ──────────────────────────────────────────────────
   var S = { PORTAL: 0, PICKS: 1, SCAN: 2, CHAT: 3, EXIT: 4 };
@@ -21,18 +21,19 @@
   var detectedLocation = '';
   var extraction = { interest: 'jobs', location: 'anywhere' };
   var signal = 0;
-  var rawHistory = []; // alternating user/assistant for Claude API
-  var cachedJobs = null; // job results from USAJobs
+  var rawHistory = [];
+  var cachedJobs = null;
   var totalResults = 0;
   var searchUrl = '';
-  var lastSearchKey = ''; // track what we last searched
+  var lastSearchKey = '';
   var isWaiting = false;
+  var topPickJob = null; // THE job Claude recommends
 
-  // ─── DOM ─────────────────────────────────────────────────────
+  // ─── DOM ───────────────────────────────────────────────────
   function $(id) { return document.getElementById(id); }
   function each(sel, fn) { var els = document.querySelectorAll(sel); for (var i = 0; i < els.length; i++) fn(els[i]); }
 
-  // ─── GEO ─────────────────────────────────────────────────────
+  // ─── GEO ───────────────────────────────────────────────────
   function detectLocation() {
     if (!WORKER_URL) return;
     fetch(WORKER_URL + '/geo')
@@ -59,7 +60,7 @@
     setTimeout(function () { selectChip('location', chip); chip.classList.add('pop'); }, 300);
   }
 
-  // ─── INIT ────────────────────────────────────────────────────
+  // ─── INIT ──────────────────────────────────────────────────
   function init() {
     $('portal').addEventListener('click', enterPortal);
     var ni = $('nameInput');
@@ -91,12 +92,12 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
     });
     $('chatSend').addEventListener('click', sendChat);
-    $('ctaBtn').addEventListener('click', function (e) { e.preventDefault(); goToExit(); });
+    $('ctaBtn').addEventListener('click', function (e) { e.preventDefault(); goToApply(); });
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   // PORTAL → PICKS
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   function enterPortal() {
     if (state !== S.PORTAL) return;
     state = S.PICKS;
@@ -109,9 +110,9 @@
     }, 600);
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   // CHIPS
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   function selectChip(type, chip) {
     if (navigator.vibrate) navigator.vibrate(10);
     var cid = type === 'interest' ? 'interestChips' : 'locationChips';
@@ -132,9 +133,9 @@
     else btn.classList.remove('pulse');
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   // PICKS → SCAN
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   function submitPicks(skip) {
     if (state !== S.PICKS) return;
     userName = $('nameInput').value.trim() || 'friend';
@@ -163,9 +164,9 @@
     }, 400);
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   // SCAN — USAJobs search + first Claude call
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   function runScan() {
     var lines = ['sl0', 'sl1', 'sl2', 'sl3', 'sl4'];
     var i = 0;
@@ -192,7 +193,6 @@
   }
 
   function transitionToChat(data) {
-    // Cache job data
     cachedJobs = data.jobs || [];
     totalResults = data.totalResults || 0;
     searchUrl = data.searchUrl || '';
@@ -208,27 +208,23 @@
       $('bigName').textContent = userName;
       $('stage3').classList.add('active');
 
-      // Signal
       animateSignal(data.signal || 25);
-
-      // Results count
       updateResultsCount();
 
-      // Type message, then show jobs + suggestions
       addAssistantBubble(data.message || getFallback(), function () {
-        if (cachedJobs.length > 0) showJobCards(cachedJobs.slice(0, 3));
+        showJobCards(data.showJobs || []);
         showSuggestions(data.suggestions);
         enableInput();
-        updateCTA();
+        updateCTA(data);
       });
 
       setTimeout(startTicker, 5000);
     }, 400);
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   // WORKER CALL
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   function callWorker(userMessage, forceSearch, callback) {
     if (!WORKER_URL) { callback(getFallbackResponse()); return; }
 
@@ -246,7 +242,6 @@
       forceSearch: !!forceSearch,
     };
 
-    // Pass cached jobs so worker doesn't re-search unless needed
     if (cachedJobs && !forceSearch) {
       payload.cachedJobs = cachedJobs;
     }
@@ -265,11 +260,14 @@
           extraction.interest = data.extraction.interest || extraction.interest;
           extraction.location = data.extraction.location || extraction.location;
         }
-        // Update cached jobs if new search was done
         if (data.jobs && data.jobs.length > 0) {
           cachedJobs = data.jobs;
           totalResults = data.totalResults || cachedJobs.length;
           searchUrl = data.searchUrl || searchUrl;
+        }
+        // Track top pick
+        if (data.topPickJob) {
+          topPickJob = data.topPickJob;
         }
         callback(data);
       })
@@ -280,22 +278,22 @@
   }
 
   function getFallback() {
-    return userName + ', scanning the federal job board now. Government positions move slow to post but they\'re real — no ghost listings, no bait-and-switch. Let\'s see what\'s out there.';
+    return userName + ', scanning the federal job board. Government positions are real — no ghost listings, no bait-and-switch. Let me find what fits.';
   }
 
   function getFallbackResponse() {
-    var msg = getFallback();
     return {
-      message: msg, extraction: extraction, signal: 20,
+      message: getFallback(), extraction: extraction, signal: 20,
+      topPick: null, topPickJob: null, showJobs: [],
       suggestions: ['What did you find?', 'Remote positions', 'Best paying', 'Broaden search'],
       jobs: cachedJobs || [], totalResults: totalResults, searchUrl: searchUrl,
-      safetyFallbackUsed: true, _raw: JSON.stringify({ message: msg })
+      safetyFallbackUsed: true, _raw: JSON.stringify({ message: getFallback() })
     };
   }
 
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   // CHAT LOOP
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
   function sendChat() {
     if (isWaiting) return;
     var input = $('chatInput');
@@ -316,7 +314,6 @@
     rawHistory.push({ role: 'user', content: text });
     showThinking();
 
-    // Check if we need to re-search (extraction may change)
     var currentKey = extraction.interest + '|' + extraction.location;
     var needSearch = currentKey !== lastSearchKey;
 
@@ -329,25 +326,30 @@
       updateResultsCount();
       lastSearchKey = extraction.interest + '|' + extraction.location;
 
-      // If Claude says to refine search, trigger re-search on next call
       if (data.refineSearch) {
-        lastSearchKey = ''; // force re-search next time
+        lastSearchKey = '';
       }
 
       addAssistantBubble(data.message, function () {
-        // Show new job cards if search was refreshed
-        if (needSearch && cachedJobs.length > 0) {
-          showJobCards(cachedJobs.slice(0, 3));
+        // Show job cards Claude selected
+        if (data.showJobs && data.showJobs.length > 0) {
+          showJobCards(data.showJobs);
         }
+
+        // If Claude converged on a top pick, show the featured card
+        if (data.topPickJob) {
+          showFeaturedJob(data.topPickJob);
+        }
+
         showSuggestions(data.suggestions);
         enableInput();
         isWaiting = false;
-        updateCTA();
+        updateCTA(data);
       });
     });
   }
 
-  // ─── CHAT UI ──────────────────────────────────────────────────
+  // ─── CHAT UI ────────────────────────────────────────────────
 
   function addAssistantBubble(text, callback) {
     var area = $('chatArea');
@@ -395,7 +397,7 @@
 
   function scrollChat() { var a = $('chatArea'); a.scrollTop = a.scrollHeight; }
 
-  // ─── JOB CARDS ────────────────────────────────────────────────
+  // ─── JOB CARDS ──────────────────────────────────────────────
 
   function showJobCards(jobs) {
     if (!jobs || !jobs.length) return;
@@ -433,6 +435,33 @@
     scrollChat();
   }
 
+  // Featured job — the one Claude converged on
+  function showFeaturedJob(job) {
+    if (!job) return;
+    var area = $('chatArea');
+
+    var card = document.createElement('a');
+    card.className = 'featured-job';
+    card.href = job.applyUrl || job.url || '#';
+    card.target = '_blank';
+    card.rel = 'noopener';
+
+    var salary = formatSalary(job.salaryMin, job.salaryMax, job.salaryPeriod);
+
+    card.innerHTML =
+      '<div class="fj-badge">&#x25CA; TOP MATCH</div>' +
+      '<div class="fj-title">' + esc(job.title) + '</div>' +
+      '<div class="fj-org">' + esc(job.org) + '</div>' +
+      '<div class="fj-dept">' + esc(job.dept) + '</div>' +
+      '<div class="fj-loc">' + esc(job.location) + '</div>' +
+      (salary ? '<div class="fj-salary">' + esc(salary) + '</div>' : '') +
+      (job.closing ? '<div class="fj-closing">Apply by ' + esc(job.closing) + '</div>' : '') +
+      '<div class="fj-apply">APPLY NOW &#x2192;</div>';
+
+    area.appendChild(card);
+    scrollChat();
+  }
+
   function formatSalary(min, max, period) {
     if (!min && !max) return '';
     var fmt = function (n) {
@@ -450,7 +479,7 @@
     return d.innerHTML;
   }
 
-  // ─── SUGGESTIONS ──────────────────────────────────────────────
+  // ─── SUGGESTIONS ────────────────────────────────────────────
 
   function showSuggestions(chips) {
     var row = $('suggestRow');
@@ -470,7 +499,7 @@
 
   function hideSuggestions() { $('suggestRow').classList.remove('visible'); }
 
-  // ─── INPUT ────────────────────────────────────────────────────
+  // ─── INPUT ──────────────────────────────────────────────────
 
   function enableInput() {
     $('chatInput').disabled = false;
@@ -483,7 +512,7 @@
     $('chatSend').disabled = true;
   }
 
-  // ─── SIGNAL ───────────────────────────────────────────────────
+  // ─── SIGNAL ─────────────────────────────────────────────────
 
   function animateSignal(target) {
     var fill = $('signalFill'), pct = $('signalPct'), label = $('signalLabel');
@@ -494,8 +523,9 @@
 
     if (label) {
       if (target < 35) label.textContent = 'scanning';
-      else if (target < 60) label.textContent = 'matches found';
-      else if (target < 85) label.textContent = 'narrowing';
+      else if (target < 55) label.textContent = 'leads found';
+      else if (target < 75) label.textContent = 'narrowing';
+      else if (target < 90) label.textContent = 'match identified';
       else label.textContent = 'locked on target';
     }
 
@@ -513,7 +543,7 @@
     tick();
   }
 
-  // ─── RESULTS COUNT ────────────────────────────────────────────
+  // ─── RESULTS COUNT ──────────────────────────────────────────
 
   function updateResultsCount() {
     var el = $('resultsCount');
@@ -526,43 +556,61 @@
     }
   }
 
-  // ─── CTA ──────────────────────────────────────────────────────
+  // ─── CTA ────────────────────────────────────────────────────
 
-  function updateCTA() {
+  function updateCTA(data) {
     var section = $('ctaSection');
     var btn = $('ctaBtn');
+    var fine = $('ctaFine');
+
     section.classList.add('visible');
 
-    if (signal >= 70 && totalResults > 0) {
-      btn.textContent = 'SEE ALL ' + totalResults + ' RESULTS ON USAJOBS \u2192';
+    if (data && data.topPickJob) {
+      // Converged — show specific job apply button
+      var job = data.topPickJob;
+      btn.textContent = 'APPLY: ' + job.title + ' \u2192';
       btn.classList.add('hot');
+      btn.setAttribute('data-url', job.applyUrl || job.url || '');
+      if (fine) fine.textContent = job.org + ' \u00b7 ' + formatSalary(job.salaryMin, job.salaryMax, job.salaryPeriod);
+    } else if (signal >= 60 && topPickJob) {
+      // Previously converged
+      btn.textContent = 'APPLY: ' + topPickJob.title + ' \u2192';
+      btn.classList.add('hot');
+      btn.setAttribute('data-url', topPickJob.applyUrl || topPickJob.url || '');
+      if (fine) fine.textContent = topPickJob.org + ' \u00b7 ' + formatSalary(topPickJob.salaryMin, topPickJob.salaryMax, topPickJob.salaryPeriod);
     } else if (totalResults > 0) {
-      btn.textContent = 'Browse all ' + totalResults + ' results \u2192';
+      // Not converged yet — show browse option
+      btn.textContent = 'Browse all ' + totalResults + ' positions \u2192';
       btn.classList.remove('hot');
+      btn.setAttribute('data-url', searchUrl);
+      if (fine) fine.textContent = 'USAJobs.gov \u00b7 keep chatting to find your match';
     } else {
       btn.textContent = 'Search USAJobs.gov \u2192';
       btn.classList.remove('hot');
+      btn.setAttribute('data-url', 'https://www.usajobs.gov');
+      if (fine) fine.textContent = 'federal positions \u00b7 verified \u00b7 real';
     }
   }
 
-  // ─── EXIT ─────────────────────────────────────────────────────
+  // ─── APPLY / EXIT ──────────────────────────────────────────
 
-  function goToExit() {
-    if (state === S.EXIT) return;
-    state = S.EXIT;
+  function goToApply() {
+    var btn = $('ctaBtn');
+    var url = btn.getAttribute('data-url');
 
-    // Go directly to USAJobs search results
-    if (searchUrl) {
-      window.location.href = searchUrl;
+    if (url) {
+      // Open the job application in a new tab
+      window.open(url, '_blank', 'noopener');
+    } else if (topPickJob) {
+      window.open(topPickJob.applyUrl || topPickJob.url, '_blank', 'noopener');
+    } else if (searchUrl) {
+      window.open(searchUrl, '_blank', 'noopener');
     } else {
-      var params = new URLSearchParams();
-      if (extraction.interest && extraction.interest !== 'anything') params.set('k', extraction.interest);
-      if (extraction.location && extraction.location !== 'anywhere') params.set('l', extraction.location);
-      window.location.href = 'https://www.usajobs.gov/Search/Results?' + params.toString();
+      window.open('https://www.usajobs.gov', '_blank', 'noopener');
     }
   }
 
-  // ─── TICKER ───────────────────────────────────────────────────
+  // ─── TICKER ─────────────────────────────────────────────────
 
   function startTicker() {
     var ticker = $('liveTicker'), textEl = $('ltText');
@@ -573,7 +621,7 @@
       var int = extraction.interest || 'federal';
       return [
         'just applied to a <em>' + int + '</em> position',
-        'found <em>3 new openings</em> on USAJobs',
+        'found <em>a match</em> through the portal',
         'got referred for a <em>GS-11</em> role',
         'landed an interview with <em>' + agencies[Math.floor(Math.random() * agencies.length)] + '</em>',
         'just crossed the gate'
@@ -588,13 +636,13 @@
       ticker.classList.add('show');
       setTimeout(function () {
         ticker.classList.remove('show');
-        setTimeout(show, 5000 + Math.random() * 4000);
+        setTimeout(show, 6000 + Math.random() * 5000);
       }, 4500);
     }
     setTimeout(show, 500);
   }
 
-  // ─── BOOT ────────────────────────────────────────────────────
+  // ─── BOOT ──────────────────────────────────────────────────
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
