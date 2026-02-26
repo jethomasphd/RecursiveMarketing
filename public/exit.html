@@ -66,6 +66,8 @@
   var location = p.get('location') || 'near me';
   var name = p.get('name') || '';
   var sig = p.get('signal') || '';
+  var directUrl = p.get('url') || '';
+  var jobTitle = p.get('job') || '';
 
   document.getElementById('sealName').textContent =
     name && name !== 'friend' ? 'You crossed the gate, ' + name + '.' : 'You crossed the gate.';
@@ -74,6 +76,10 @@
     document.getElementById('sigVal').textContent = sig + '%';
   } else {
     document.getElementById('sigRow').style.display = 'none';
+  }
+
+  if (jobTitle) {
+    document.getElementById('sealLine').textContent = 'Your match: ' + jobTitle + '. Go get it.';
   }
 
   function loadConfig() {
@@ -86,9 +92,14 @@
   }
 
   async function run() {
+    if (directUrl) {
+      setTimeout(function(){window.location.href=directUrl},2000);
+      return;
+    }
+
     var cfg = await loadConfig();
     if (cfg) {
-      if (cfg.finalLine) document.getElementById('sealLine').textContent = cfg.finalLine;
+      if (!jobTitle && cfg.finalLine) document.getElementById('sealLine').textContent = cfg.finalLine;
       if (interest === 'jobs' && cfg.fallbackInterest) interest = cfg.fallbackInterest;
       if (location === 'near me' && cfg.fallbackLocation) location = cfg.fallbackLocation;
     }

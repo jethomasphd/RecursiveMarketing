@@ -198,6 +198,32 @@
   .jc-apply{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;
     color:var(--green);margin-top:5px;letter-spacing:.5px;text-transform:uppercase}
 
+  /* Featured job — the converged top pick */
+  .featured-job{display:block;margin:10px 0;padding:14px 16px;
+    background:linear-gradient(135deg,rgba(0,232,90,.06),rgba(0,212,255,.04));
+    border:2px solid var(--green);border-radius:14px;
+    text-decoration:none;color:var(--white);transition:all .3s;
+    animation:bubbleIn .4s ease both;position:relative;
+    box-shadow:0 0 20px var(--green-glow);
+    -webkit-tap-highlight-color:transparent}
+  .featured-job:hover,.featured-job:active{
+    box-shadow:0 0 30px rgba(0,232,90,.25);border-color:var(--gold)}
+  .featured-job:active{transform:scale(0.98)}
+  .fj-badge{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;
+    color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+  .fj-title{font-size:15px;font-weight:700;color:var(--white);margin-bottom:3px}
+  .fj-org{font-size:12px;color:var(--cyan);font-weight:500}
+  .fj-dept{font-size:10px;color:var(--grey);margin-bottom:2px}
+  .fj-loc{font-size:11px;color:var(--grey)}
+  .fj-salary{font-size:14px;font-weight:700;color:var(--green);margin-top:6px}
+  .fj-closing{font-family:'JetBrains Mono',monospace;font-size:9px;
+    color:var(--gold);margin-top:4px;letter-spacing:.3px}
+  .fj-apply{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;
+    color:var(--void);background:var(--green);
+    padding:8px 16px;border-radius:8px;margin-top:8px;
+    text-align:center;letter-spacing:1px;text-transform:uppercase;
+    box-shadow:0 0 12px var(--green-glow)}
+
   /* Results count */
   .results-count{font-family:'JetBrains Mono',monospace;font-size:9px;
     color:var(--green);letter-spacing:.5px;margin-top:3px;display:none}
@@ -388,7 +414,7 @@
 
     <div class="cta-section" id="ctaSection">
       <button class="cta-btn" id="ctaBtn">Search USAJobs.gov &#x2192;</button>
-      <div class="cta-fine">real federal positions &#xb7; verified &#xb7; USAJobs.gov</div>
+      <div class="cta-fine" id="ctaFine">real federal positions &#xb7; verified &#xb7; USAJobs.gov</div>
     </div>
   </div>
 
