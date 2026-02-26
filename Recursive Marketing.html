@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050510">
+<title>Free Cash App</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #050510;
+    --surface: #0c0c1a;
+    --surface-light: #12122a;
+    --white: #f0f0f8;
+    --grey: #8888aa;
+    --grey-dim: #4a4a6a;
+    --green: #00e85a;
+    --green-dim: #00a83f;
+    --green-glow: rgba(0,232,90,0.12);
+    --cyan: #00d4ff;
+    --cyan-glow: rgba(0,212,255,0.1);
+    --magenta: #e040fb;
+    --magenta-glow: rgba(224,64,251,0.08);
+    --gold: #ffd740;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    height:100%;overflow:hidden;
+    background:var(--void);color:var(--white);
+    font-family:'Space Grotesk',sans-serif;
+  }
+
+  .screen{
+    height:100dvh;width:100%;position:relative;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  /* ===== STAGE 0: THE PORTAL ===== */
+  .stage-0{
+    display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;
+    width:100%;height:100%;position:absolute;inset:0;
+    z-index:10;transition:opacity 0.8s ease;padding:20px;
+  }
+  .stage-0.gone{opacity:0;pointer-events:none}
+
+  .portal{
+    width:140px;height:140px;border-radius:50%;
+    background:conic-gradient(from 0deg,var(--cyan),var(--magenta),var(--green),var(--cyan));
+    animation:portalSpin 3s linear infinite;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;margin-bottom:28px;
+    box-shadow:0 0 60px var(--cyan-glow),0 0 120px var(--magenta-glow);
+    position:relative;
+  }
+  .portal::after{
+    content:'';position:absolute;inset:6px;
+    background:var(--void);border-radius:50%;
+  }
+  .portal-eye{
+    position:relative;z-index:1;font-size:40px;
+    animation:eyePulse 2s ease-in-out infinite;
+  }
+
+  .portal-text{
+    font-size:13px;font-weight:300;color:var(--grey);
+    letter-spacing:3px;text-transform:uppercase;
+    animation:breathe 2s ease-in-out infinite;
+  }
+
+  /* ===== STAGE 1: NAME ===== */
+  .stage-1{
+    display:none;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;
+    width:100%;height:100%;position:absolute;inset:0;
+    z-index:10;padding:20px;
+  }
+  .stage-1.active{display:flex;animation:fadeUp 0.6s ease both}
+
+  .name-prompt{
+    font-size:20px;font-weight:300;color:var(--grey);
+    margin-bottom:20px;line-height:1.5;
+  }
+  .name-prompt em{color:var(--white);font-style:normal;font-weight:500}
+
+  .name-input-wrap{
+    position:relative;width:100%;max-width:280px;margin-bottom:20px;
+  }
+  .name-input{
+    width:100%;padding:14px 18px;
+    font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:500;
+    color:var(--white);background:var(--surface);
+    border:1px solid var(--grey-dim);border-radius:12px;
+    text-align:center;outline:none;
+    transition:border-color 0.3s,box-shadow 0.3s;
+    caret-color:var(--cyan);
+  }
+  .name-input:focus{
+    border-color:var(--cyan);
+    box-shadow:0 0 20px var(--cyan-glow);
+  }
+  .name-input::placeholder{color:var(--grey-dim)}
+
+  .name-go{
+    width:100%;max-width:280px;padding:14px;
+    font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;
+    color:var(--void);background:var(--cyan);
+    border:none;border-radius:12px;cursor:pointer;
+    transition:all 0.3s;letter-spacing:0.5px;
+    box-shadow:0 0 20px var(--cyan-glow);
+  }
+  .name-go:active{transform:scale(0.97)}
+  .name-go:disabled{opacity:0.3;cursor:default}
+
+  .name-skip{
+    margin-top:14px;font-size:12px;color:var(--grey-dim);
+    cursor:pointer;letter-spacing:1px;
+    border:none;background:none;
+  }
+
+  /* ===== STAGE 2: PROCESSING ===== */
+  .stage-2{
+    display:none;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;
+    width:100%;height:100%;position:absolute;inset:0;
+    z-index:10;padding:20px;
+  }
+  .stage-2.active{display:flex;animation:fadeUp 0.5s ease both}
+
+  .scan-ring{
+    width:80px;height:80px;border-radius:50%;
+    border:2px solid var(--grey-dim);
+    border-top-color:var(--cyan);
+    animation:spin 0.8s linear infinite;
+    margin-bottom:24px;
+  }
+  .scan-lines{
+    width:100%;max-width:300px;
+  }
+  .scan-line{
+    font-family:'JetBrains Mono',monospace;font-size:12px;
+    color:var(--grey-dim);text-align:left;
+    padding:4px 0;overflow:hidden;
+    opacity:0;
+  }
+  .scan-line.done{color:var(--cyan);opacity:1}
+  .scan-line .check{color:var(--green);margin-right:6px}
+
+  /* ===== STAGE 3: THE REVEAL ===== */
+  .stage-3{
+    display:none;flex-direction:column;align-items:center;
+    justify-content:center;
+    width:100%;height:100%;position:absolute;inset:0;
+    z-index:10;padding:20px;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+  }
+  .stage-3.active{display:flex;animation:fadeUp 0.6s ease both}
+
+  .greeting{
+    font-size:14px;color:var(--cyan);
+    font-family:'JetBrains Mono',monospace;
+    letter-spacing:2px;text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .user-name-big{
+    font-size:34px;font-weight:700;color:var(--white);
+    margin-bottom:4px;text-align:center;
+    text-shadow:0 0 30px var(--cyan-glow);
+  }
+
+  /* Money counter */
+  .counter-block{
+    text-align:center;margin:12px 0 16px;
+    padding:18px 24px;
+    background:var(--surface);border:1px solid var(--grey-dim);
+    border-radius:16px;width:100%;max-width:320px;
+    position:relative;overflow:hidden;
+  }
+  .counter-block::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,var(--cyan),var(--green),var(--gold));
+  }
+  .counter-label{
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    color:var(--grey);letter-spacing:2px;text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .counter-num{
+    font-family:'JetBrains Mono',monospace;font-size:42px;
+    font-weight:700;color:var(--green);line-height:1;
+    text-shadow:0 0 20px var(--green-glow);
+  }
+  .counter-per{
+    font-family:'JetBrains Mono',monospace;font-size:11px;
+    color:var(--grey);margin-top:4px;letter-spacing:1px;
+  }
+
+  /* AI message */
+  .ai-msg{
+    background:var(--surface);border:1px solid var(--grey-dim);
+    border-radius:14px;padding:14px 16px;
+    margin-bottom:14px;width:100%;max-width:340px;
+    position:relative;
+  }
+  .ai-msg::before{
+    content:'✦';position:absolute;top:-8px;left:14px;
+    background:var(--void);padding:0 6px;
+    font-size:12px;color:var(--magenta);
+  }
+  .ai-msg-text{
+    font-size:15px;color:var(--white);line-height:1.55;
+  }
+  .ai-msg-text .hl{color:var(--cyan);font-weight:600}
+  .typing-cursor{
+    display:inline-block;width:2px;height:14px;
+    background:var(--cyan);vertical-align:middle;
+    margin-left:2px;animation:blink 0.8s step-end infinite;
+  }
+
+  /* Pain stats — compact */
+  .pain-row{
+    display:flex;gap:6px;margin-bottom:14px;
+    width:100%;max-width:340px;
+  }
+  .pain-chip{
+    flex:1;background:var(--surface);
+    border:1px solid rgba(221,0,0,0.15);
+    border-radius:10px;padding:8px 6px;text-align:center;
+  }
+  .pain-chip .n{
+    font-family:'JetBrains Mono',monospace;font-size:16px;
+    font-weight:700;color:#ff4757;line-height:1;
+  }
+  .pain-chip .l{
+    font-size:9px;color:var(--grey);margin-top:3px;line-height:1.2;
+  }
+
+  /* Bridge */
+  .bridge-line{
+    font-size:16px;font-style:italic;color:var(--gold);
+    text-align:center;margin-bottom:14px;
+    text-shadow:0 0 15px rgba(255,215,64,0.1);
+  }
+
+  /* CTA */
+  .cta-final{
+    display:block;width:100%;max-width:320px;padding:16px;
+    font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;
+    letter-spacing:1px;text-align:center;
+    color:var(--void);background:var(--green);
+    border:none;border-radius:14px;cursor:pointer;text-decoration:none;
+    box-shadow:0 0 25px var(--green-glow),0 4px 15px rgba(0,0,0,0.3);
+    animation:btnPulse 2.5s ease-in-out infinite;
+    transition:all 0.3s;
+  }
+  .cta-final:active{transform:scale(0.97)}
+  .cta-fine{
+    font-family:'JetBrains Mono',monospace;font-size:9px;
+    color:var(--grey-dim);letter-spacing:1px;text-transform:uppercase;
+    text-align:center;margin-top:8px;
+  }
+
+  .proof-bar{
+    display:flex;align-items:center;justify-content:center;gap:6px;
+    margin-top:10px;
+    font-family:'JetBrains Mono',monospace;font-size:9px;
+    color:var(--grey-dim);letter-spacing:1px;
+  }
+  .proof-dot{
+    width:5px;height:5px;background:var(--green);border-radius:50%;
+    animation:proofPulse 1.5s ease-in-out infinite;
+  }
+
+  /* Live activity ticker */
+  .live-ticker{
+    position:fixed;bottom:0;left:0;right:0;
+    background:rgba(5,5,16,0.9);backdrop-filter:blur(8px);
+    border-top:1px solid var(--grey-dim);
+    padding:8px 16px;z-index:50;
+    display:none;
+  }
+  .live-ticker.show{display:flex;align-items:center;gap:8px;animation:slideUp 0.4s ease both}
+  .lt-dot{
+    width:6px;height:6px;background:var(--green);border-radius:50%;
+    animation:proofPulse 1s ease-in-out infinite;flex-shrink:0;
+  }
+  .lt-text{
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    color:var(--grey);letter-spacing:0.5px;
+    overflow:hidden;white-space:nowrap;
+  }
+  .lt-text em{color:var(--green);font-style:normal}
+  .lt-close{
+    margin-left:auto;font-size:14px;color:var(--grey-dim);
+    cursor:pointer;padding:4px;flex-shrink:0;
+  }
+
+  /* BG mesh */
+  .mesh{
+    position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(ellipse at 20% 30%,rgba(0,212,255,0.04) 0%,transparent 50%),
+      radial-gradient(ellipse at 80% 70%,rgba(224,64,251,0.03) 0%,transparent 50%),
+      radial-gradient(ellipse at 50% 50%,rgba(0,232,90,0.02) 0%,transparent 60%);
+  }
+
+  /* Animations */
+  @keyframes portalSpin{to{transform:rotate(360deg)}}
+  @keyframes eyePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+  @keyframes breathe{0%,100%{opacity:0.5}50%{opacity:1}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes blink{50%{opacity:0}}
+  @keyframes btnPulse{
+    0%,100%{box-shadow:0 0 25px var(--green-glow),0 4px 15px rgba(0,0,0,0.3)}
+    50%{box-shadow:0 0 40px rgba(0,232,90,0.25),0 4px 20px rgba(0,0,0,0.3)}
+  }
+  @keyframes proofPulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes countUp{from{opacity:0.5}to{opacity:1}}
+
+  @media(max-height:650px){
+    .user-name-big{font-size:28px}
+    .counter-block{padding:14px 20px;margin:8px 0 12px}
+    .counter-num{font-size:34px}
+    .ai-msg{padding:12px 14px;margin-bottom:10px}
+    .ai-msg-text{font-size:14px}
+    .pain-row{margin-bottom:10px}
+    .bridge-line{font-size:14px;margin-bottom:10px}
+    .cta-final{padding:14px;font-size:14px}
+  }
+</style>
+</head>
+<body>
+
+<div class="mesh"></div>
+
+<div class="screen">
+
+  <!-- STAGE 0: PORTAL -->
+  <div class="stage-0" id="stage0">
+    <div class="portal" onclick="enterPortal()">
+      <div class="portal-eye">👁</div>
+    </div>
+    <div class="portal-text">tap to begin</div>
+  </div>
+
+  <!-- STAGE 1: NAME -->
+  <div class="stage-1" id="stage1">
+    <div class="name-prompt">
+      Before we start —<br><em>what's your first name?</em>
+    </div>
+    <div class="name-input-wrap">
+      <input class="name-input" id="nameInput" type="text"
+        placeholder="your name" maxlength="20"
+        autocomplete="off" autocapitalize="words" spellcheck="false">
+    </div>
+    <button class="name-go" id="nameGo" onclick="submitName()" disabled>Continue</button>
+    <button class="name-skip" onclick="submitName('friend')">skip →</button>
+  </div>
+
+  <!-- STAGE 2: PROCESSING -->
+  <div class="stage-2" id="stage2">
+    <div class="scan-ring"></div>
+    <div class="scan-lines" id="scanLines">
+      <div class="scan-line" id="sl0">scanning labor market data...</div>
+      <div class="scan-line" id="sl1">analyzing earning opportunities...</div>
+      <div class="scan-line" id="sl2">calculating potential for <span id="slName"></span>...</div>
+      <div class="scan-line" id="sl3">generating personalized results...</div>
+      <div class="scan-line" id="sl4">calibrating your bridge...</div>
+    </div>
+  </div>
+
+  <!-- STAGE 3: REVEAL -->
+  <div class="stage-3" id="stage3">
+    <div style="flex:1;min-height:8px"></div>
+
+    <div class="greeting">result for</div>
+    <div class="user-name-big" id="bigName"></div>
+
+    <div class="counter-block">
+      <div class="counter-label">estimated weekly earning potential</div>
+      <div class="counter-num" id="counterNum">$0</div>
+      <div class="counter-per">with Free Cash App</div>
+    </div>
+
+    <div class="ai-msg">
+      <div class="ai-msg-text" id="aiMsg">
+        <span class="typing-cursor"></span>
+      </div>
+    </div>
+
+    <div class="pain-row">
+      <div class="pain-chip">
+        <div class="n">1 in 3</div>
+        <div class="l">Fake postings</div>
+      </div>
+      <div class="pain-chip">
+        <div class="n">61%</div>
+        <div class="l">Ghosted</div>
+      </div>
+      <div class="pain-chip">
+        <div class="n">180</div>
+        <div class="l">Per hire</div>
+      </div>
+      <div class="pain-chip">
+        <div class="n">3×</div>
+        <div class="l">More scams</div>
+      </div>
+    </div>
+
+    <div class="bridge-line">Not a job — a bridge to your next one.</div>
+
+    <a class="cta-final" href="https://jobs.best-jobs-online.com/" id="ctaBtn">
+      START EARNING — FREE
+    </a>
+    <div class="cta-fine">No credit card · No commitments</div>
+
+    <div class="proof-bar">
+      <span class="proof-dot"></span>
+      <span>Thousands earning while they search</span>
+    </div>
+
+    <div style="flex:1;min-height:8px"></div>
+  </div>
+
+</div>
+
+<!-- Live activity ticker -->
+<div class="live-ticker" id="liveTicker">
+  <div class="lt-dot"></div>
+  <div class="lt-text" id="ltText"></div>
+  <div class="lt-close" onclick="document.getElementById('liveTicker').classList.remove('show')">✕</div>
+</div>
+
+<script>
+let userName = '';
+
+// STAGE 0 → 1
+function enterPortal() {
+  if (navigator.vibrate) navigator.vibrate(20);
+  const s0 = document.getElementById('stage0');
+  s0.classList.add('gone');
+  setTimeout(() => {
+    document.getElementById('stage1').classList.add('active');
+    setTimeout(() => document.getElementById('nameInput').focus(), 400);
+  }, 600);
+}
+
+// Name input handler
+const nameInput = document.getElementById('nameInput');
+const nameGo = document.getElementById('nameGo');
+nameInput.addEventListener('input', () => {
+  nameGo.disabled = nameInput.value.trim().length === 0;
+});
+nameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && nameInput.value.trim()) submitName();
+});
+
+// STAGE 1 → 2
+function submitName(override) {
+  userName = override || nameInput.value.trim() || 'friend';
+  userName = userName.charAt(0).toUpperCase() + userName.slice(1);
+  if (navigator.vibrate) navigator.vibrate(15);
+
+  document.getElementById('stage1').style.opacity = '0';
+  document.getElementById('stage1').style.transition = 'opacity 0.4s';
+  setTimeout(() => {
+    document.getElementById('stage1').style.display = 'none';
+    document.getElementById('slName').textContent = userName;
+    document.getElementById('stage2').classList.add('active');
+    runScan();
+  }, 400);
+}
+
+// STAGE 2: Processing sequence
+function runScan() {
+  const lines = ['sl0','sl1','sl2','sl3','sl4'];
+  let i = 0;
+  const int = setInterval(() => {
+    if (i >= lines.length) {
+      clearInterval(int);
+      // Fire the API call now (already started below)
+      setTimeout(goToReveal, 600);
+      return;
+    }
+    const el = document.getElementById(lines[i]);
+    el.classList.add('done');
+    el.innerHTML = '<span class="check">✓</span>' + el.textContent;
+    i++;
+  }, 700);
+
+  // Start API call in parallel
+  callClaude();
+}
+
+// Claude API call
+let aiResponse = '';
+async function callClaude() {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `You are writing a single short motivational message (2-3 sentences MAX, under 40 words total) for someone named ${userName} who is struggling with job searching. The message should:
+1. Use their name once naturally
+2. Validate that the job market is genuinely broken (ghost jobs, ghosting, scams)  
+3. Pivot to hope: they can earn real cash RIGHT NOW while they search, through Free Cash App
+4. Be warm, direct, and punchy — not corporate or cheesy
+
+Write ONLY the message, no quotes, no preamble. Use plain text, no markdown.`
+        }]
+      })
+    });
+    const data = await res.json();
+    aiResponse = data.content?.map(c => c.text || '').join('') || '';
+  } catch(e) {
+    // Fallback
+    aiResponse = '';
+  }
+}
+
+function getFallback() {
+  return `${userName}, the job market isn't just tough — it's rigged against you. But here's the thing: your attention is worth real money right now. Free Cash App lets you earn while the broken system catches up.`;
+}
+
+// STAGE 2 → 3
+function goToReveal() {
+  document.getElementById('stage2').style.opacity = '0';
+  document.getElementById('stage2').style.transition = 'opacity 0.4s';
+
+  setTimeout(() => {
+    document.getElementById('stage2').style.display = 'none';
+    document.getElementById('bigName').textContent = userName;
+    document.getElementById('stage3').classList.add('active');
+
+    // Counter animation
+    animateCounter();
+
+    // Type the AI message
+    setTimeout(() => {
+      typeMessage(aiResponse || getFallback());
+    }, 800);
+
+    // Live ticker after a delay
+    setTimeout(startLiveTicker, 4000);
+
+  }, 400);
+}
+
+// Money counter animation
+function animateCounter() {
+  const el = document.getElementById('counterNum');
+  const target = 47 + Math.floor(Math.random() * 83); // $47-$130/week range
+  const duration = 2000;
+  const start = Date.now();
+
+  function tick() {
+    const elapsed = Date.now() - start;
+    const progress = Math.min(elapsed / duration, 1);
+    // Ease out cubic
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.floor(eased * target);
+    el.textContent = '$' + current;
+    if (progress < 1) requestAnimationFrame(tick);
+    else el.textContent = '$' + target;
+  }
+  tick();
+}
+
+// Typewriter effect
+function typeMessage(text) {
+  const el = document.getElementById('aiMsg');
+  el.innerHTML = '';
+  let i = 0;
+  function type() {
+    if (i >= text.length) {
+      // Highlight name if present
+      el.innerHTML = el.innerHTML.replace(
+        new RegExp(userName, 'g'),
+        `<span class="hl">${userName}</span>`
+      );
+      return;
+    }
+    el.innerHTML = text.substring(0, i + 1) + '<span class="typing-cursor"></span>';
+    i++;
+    setTimeout(type, 18 + Math.random() * 22);
+  }
+  type();
+}
+
+// Live activity ticker — fake social proof stream
+function startLiveTicker() {
+  const ticker = document.getElementById('liveTicker');
+  const textEl = document.getElementById('ltText');
+
+  const names = ['Sarah','Mike','Jessica','David','Ashley','Chris','Maria','James','Taylor','Alex','Jordan','Morgan','Casey','Ryan','Sam','Devon','Riley','Avery','Cameron','Dakota'];
+  const cities = ['Dallas','Houston','Phoenix','Chicago','Miami','Atlanta','Denver','Orlando','Nashville','Portland','San Antonio','Memphis','Charlotte','Detroit','Louisville'];
+  const actions = [
+    'just started earning',
+    'cashed out <em>$23</em> today',
+    'earned <em>$15</em> this morning',
+    'just signed up',
+    'completed their first task',
+    'just withdrew <em>$47</em>',
+    'started 2 minutes ago',
+    'earned <em>$8</em> in 20 minutes',
+  ];
+
+  function showActivity() {
+    const name = names[Math.floor(Math.random() * names.length)];
+    const city = cities[Math.floor(Math.random() * cities.length)];
+    const action = actions[Math.floor(Math.random() * actions.length)];
+    textEl.innerHTML = `<em>${name}</em> in ${city} ${action}`;
+    ticker.classList.add('show');
+
+    // Auto dismiss and cycle
+    setTimeout(() => {
+      ticker.classList.remove('show');
+      setTimeout(showActivity, 3000 + Math.random() * 5000);
+    }, 5000);
+  }
+
+  setTimeout(showActivity, 500);
+}
+</script>
+
+</body>
+</html>
