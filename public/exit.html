@@ -14,6 +14,7 @@
     --grey-dim: #4a4a6a;
     --gold: #ffd740;
     --green: #00e85a;
+    --green-glow: rgba(0,232,90,0.12);
     --cyan: #00d4ff;
   }
   *{margin:0;padding:0;box-sizing:border-box}
@@ -32,7 +33,7 @@
   }
 
   .seal-sigil{
-    font-size:56px;margin-bottom:24px;
+    font-size:56px;margin-bottom:16px;
     opacity:0;animation:fadeIn 0.5s 0.2s ease both;
     color:var(--cyan);
   }
@@ -42,6 +43,24 @@
     margin-bottom:8px;
     opacity:0;animation:fadeIn 0.4s 0.4s ease both;
     text-shadow:0 0 20px rgba(0,212,255,0.15);
+  }
+
+  .seal-signal{
+    display:flex;align-items:center;gap:8px;
+    margin-bottom:12px;
+    opacity:0;animation:fadeIn 0.4s 0.5s ease both;
+  }
+  .seal-signal-label{
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    color:var(--grey);letter-spacing:1px;text-transform:uppercase;
+  }
+  .seal-signal-pct{
+    font-family:'JetBrains Mono',monospace;font-size:18px;
+    font-weight:700;color:var(--green);
+  }
+  .seal-signal-matches{
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    color:var(--grey-dim);letter-spacing:0.5px;
   }
 
   .seal-line{
@@ -86,6 +105,11 @@
 <div class="seal">
   <div class="seal-sigil">&#x25CA;</div>
   <div class="seal-name" id="sealName"></div>
+  <div class="seal-signal" id="sealSignal">
+    <span class="seal-signal-label">signal</span>
+    <span class="seal-signal-pct" id="sealPct"></span>
+    <span class="seal-signal-matches" id="sealMatches"></span>
+  </div>
   <div class="seal-line" id="sealLine">If the market is a maze, you are the knife.</div>
   <div class="seal-sub" id="sealSub">redirecting to real jobs...</div>
   <div class="seal-bar"><div class="seal-bar-fill"></div></div>
@@ -106,6 +130,8 @@
   var interest = params.get('interest') || FALLBACK_INTEREST;
   var location = params.get('location') || FALLBACK_LOCATION;
   var name = params.get('name') || '';
+  var signal = params.get('signal') || '';
+  var matches = params.get('matches') || '';
 
   // Show name if provided
   var nameEl = document.getElementById('sealName');
@@ -113,6 +139,17 @@
     nameEl.textContent = 'You crossed the gate, ' + name + '.';
   } else {
     nameEl.textContent = 'You crossed the gate.';
+  }
+
+  // Show signal data if available
+  var signalEl = document.getElementById('sealSignal');
+  var pctEl = document.getElementById('sealPct');
+  var matchesEl = document.getElementById('sealMatches');
+  if (signal && pctEl) {
+    pctEl.textContent = signal + '%';
+    matchesEl.textContent = matches ? '\u00b7 ' + matches + ' precision matches' : '';
+  } else {
+    signalEl.style.display = 'none';
   }
 
   // Fetch config with hard timeout
@@ -124,9 +161,7 @@
       try {
         controller = new AbortController();
         timeoutId = setTimeout(function () { controller.abort(); }, CONFIG_TIMEOUT);
-      } catch (e) {
-        // No AbortController — use basic timeout
-      }
+      } catch (e) { /* No AbortController */ }
 
       var opts = {};
       if (controller) opts.signal = controller.signal;
@@ -156,12 +191,10 @@
   async function run() {
     var config = await loadConfig();
 
-    // Apply config overrides
     if (config) {
       if (config.finalLine) {
         document.getElementById('sealLine').textContent = config.finalLine;
       }
-      // Use fallbacks from config if interest/location are defaults
       if (interest === FALLBACK_INTEREST && config.fallbackInterest) {
         interest = config.fallbackInterest;
       }
@@ -172,7 +205,6 @@
 
     var redirectUrl = buildUrl(config);
 
-    // Wait for seal animation, then redirect
     setTimeout(function () {
       window.location.href = redirectUrl;
     }, SEAL_DURATION);
