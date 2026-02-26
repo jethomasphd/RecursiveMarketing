@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050510">
+<title>&#x25CA; Exit</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #050510;
+    --white: #f0f0f8;
+    --grey: #8888aa;
+    --grey-dim: #4a4a6a;
+    --gold: #ffd740;
+    --green: #00e85a;
+    --cyan: #00d4ff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    height:100%;overflow:hidden;
+    background:var(--void);color:var(--white);
+    font-family:'Space Grotesk',sans-serif;
+  }
+
+  .seal{
+    height:100dvh;width:100%;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    text-align:center;padding:20px;
+    position:relative;
+  }
+
+  .seal-sigil{
+    font-size:56px;margin-bottom:24px;
+    opacity:0;animation:fadeIn 0.5s 0.2s ease both;
+    color:var(--cyan);
+  }
+
+  .seal-name{
+    font-size:20px;font-weight:600;color:var(--white);
+    margin-bottom:8px;
+    opacity:0;animation:fadeIn 0.4s 0.4s ease both;
+    text-shadow:0 0 20px rgba(0,212,255,0.15);
+  }
+
+  .seal-line{
+    font-size:16px;color:var(--gold);
+    font-style:italic;
+    max-width:320px;line-height:1.5;
+    opacity:0;animation:fadeIn 0.5s 0.6s ease both;
+    text-shadow:0 0 15px rgba(255,215,64,0.1);
+  }
+
+  .seal-sub{
+    font-size:10px;color:var(--grey-dim);
+    font-family:'JetBrains Mono',monospace;
+    letter-spacing:2px;text-transform:uppercase;
+    margin-top:20px;
+    opacity:0;animation:fadeIn 0.4s 0.9s ease both;
+  }
+
+  .seal-bar{
+    position:absolute;bottom:0;left:0;right:0;
+    height:3px;background:var(--grey-dim);
+    overflow:hidden;
+  }
+  .seal-bar-fill{
+    height:100%;width:0;
+    background:linear-gradient(90deg,var(--cyan),var(--green),var(--gold));
+    animation:fillBar 1.8s 0.3s ease-in-out both;
+  }
+
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(8px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  @keyframes fillBar{
+    from{width:0}
+    to{width:100%}
+  }
+</style>
+</head>
+<body>
+
+<div class="seal">
+  <div class="seal-sigil">&#x25CA;</div>
+  <div class="seal-name" id="sealName"></div>
+  <div class="seal-line" id="sealLine">If the market is a maze, you are the knife.</div>
+  <div class="seal-sub" id="sealSub">redirecting to real jobs...</div>
+  <div class="seal-bar"><div class="seal-bar-fill"></div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var FALLBACK_URL = 'https://jobs.best-jobs-online.com/jobs';
+  var FALLBACK_INTEREST = 'jobs';
+  var FALLBACK_LOCATION = 'near me';
+  var CONFIG_TIMEOUT = 500;
+  var SEAL_DURATION = 2000;
+
+  // Parse query params
+  var params = new URLSearchParams(window.location.search);
+  var interest = params.get('interest') || FALLBACK_INTEREST;
+  var location = params.get('location') || FALLBACK_LOCATION;
+  var name = params.get('name') || '';
+
+  // Show name if provided
+  var nameEl = document.getElementById('sealName');
+  if (name && name !== 'friend') {
+    nameEl.textContent = 'You crossed the gate, ' + name + '.';
+  } else {
+    nameEl.textContent = 'You crossed the gate.';
+  }
+
+  // Fetch config with hard timeout
+  function loadConfig() {
+    return new Promise(function (resolve) {
+      var controller;
+      var timeoutId;
+
+      try {
+        controller = new AbortController();
+        timeoutId = setTimeout(function () { controller.abort(); }, CONFIG_TIMEOUT);
+      } catch (e) {
+        // No AbortController — use basic timeout
+      }
+
+      var opts = {};
+      if (controller) opts.signal = controller.signal;
+
+      fetch('exit-config.json', opts)
+        .then(function (res) {
+          if (timeoutId) clearTimeout(timeoutId);
+          return res.json();
+        })
+        .then(resolve)
+        .catch(function () {
+          if (timeoutId) clearTimeout(timeoutId);
+          resolve(null);
+        });
+    });
+  }
+
+  function buildUrl(config) {
+    if (config && config.redirectTemplate) {
+      return config.redirectTemplate
+        .replace('{{interest}}', encodeURIComponent(interest))
+        .replace('{{location}}', encodeURIComponent(location));
+    }
+    return FALLBACK_URL + '?q=' + encodeURIComponent(interest) + '&l=' + encodeURIComponent(location);
+  }
+
+  async function run() {
+    var config = await loadConfig();
+
+    // Apply config overrides
+    if (config) {
+      if (config.finalLine) {
+        document.getElementById('sealLine').textContent = config.finalLine;
+      }
+      // Use fallbacks from config if interest/location are defaults
+      if (interest === FALLBACK_INTEREST && config.fallbackInterest) {
+        interest = config.fallbackInterest;
+      }
+      if (location === FALLBACK_LOCATION && config.fallbackLocation) {
+        location = config.fallbackLocation;
+      }
+    }
+
+    var redirectUrl = buildUrl(config);
+
+    // Wait for seal animation, then redirect
+    setTimeout(function () {
+      window.location.href = redirectUrl;
+    }, SEAL_DURATION);
+  }
+
+  run();
+})();
+</script>
+
+</body>
+</html>
