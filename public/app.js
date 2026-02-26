@@ -1,20 +1,20 @@
 // ═══════════════════════════════════════════════════════════════
-// THE SPIRAL v6 — Claude-driven job matchmaker.
-// Picks → Chat. No fake scan. Claude does the heavy lifting.
+// THE SPIRAL v6 — Total rebuild.
+// Portal → Picks → Chat. No scan stage. Claude drives everything.
+// Console logging throughout. Visible errors. Bulletproof.
 // ═══════════════════════════════════════════════════════════════
 
 (function () {
   'use strict';
 
-  // ─── CONFIG ──────────────────────────────────────────────────
-  var WORKER_URL = window.__WORKER_URL__ || '';
-  var WORKER_TIMEOUT_MS = 30000;
+  var WORKER = window.__WORKER_URL__ || '';
+  var TIMEOUT = 30000;
 
-  // ─── STATES ──────────────────────────────────────────────────
-  var S = { PORTAL: 0, PICKS: 1, CHAT: 2, EXIT: 3 };
-  var state = S.PORTAL;
+  // States: portal → picks → chat
+  var PORTAL = 0, PICKS = 1, CHAT = 2;
+  var state = PORTAL;
 
-  // ─── SESSION ─────────────────────────────────────────────────
+  // Session
   var userName = '';
   var selectedInterest = '';
   var selectedLocation = '';
@@ -29,43 +29,44 @@
   var isWaiting = false;
   var topPickJob = null;
 
-  // ─── DOM ───────────────────────────────────────────────────
+  // ─── Helpers ──────────────────────────────────────────────
+
   function $(id) { return document.getElementById(id); }
-  function each(sel, fn) { var els = document.querySelectorAll(sel); for (var i = 0; i < els.length; i++) fn(els[i]); }
 
-  // ─── GEO ───────────────────────────────────────────────────
-  function detectLocation() {
-    if (!WORKER_URL) return;
-    fetch(WORKER_URL + '/geo')
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (d.detected && d.locationString) {
-          detectedLocation = d.locationString;
-          injectDetectedChip(detectedLocation);
-        }
-      })
-      .catch(function () {});
+  function each(sel, fn) {
+    var els = document.querySelectorAll(sel);
+    for (var i = 0; i < els.length; i++) fn(els[i]);
   }
 
-  function injectDetectedChip(loc) {
-    var c = $('locationChips');
-    if (!c || c.querySelector('[data-detected]')) return;
-    var chip = document.createElement('button');
-    chip.className = 'pick-chip detected-chip';
-    chip.setAttribute('data-value', loc);
-    chip.setAttribute('data-detected', 'true');
-    chip.textContent = loc;
-    c.insertBefore(chip, c.firstChild);
-    chip.addEventListener('click', function () { selectChip('location', chip); });
-    setTimeout(function () { selectChip('location', chip); chip.classList.add('pop'); }, 300);
+  function log() {
+    var args = ['[spiral]'];
+    for (var i = 0; i < arguments.length; i++) args.push(arguments[i]);
+    console.log.apply(console, args);
   }
 
-  // ─── INIT ──────────────────────────────────────────────────
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  function scrollChat() {
+    var a = $('chatArea');
+    if (a) a.scrollTop = a.scrollHeight;
+  }
+
+  // ─── Init ─────────────────────────────────────────────────
+
   function init() {
+    log('init, worker:', WORKER || '(none)');
+
     $('portal').addEventListener('click', enterPortal);
+
     var ni = $('nameInput');
     ni.addEventListener('input', updateGoButton);
-    ni.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitPicks(); });
+    ni.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') submitPicks();
+    });
 
     each('#interestChips .pick-chip', function (c) {
       c.addEventListener('click', function () { selectChip('interest', c); });
@@ -83,11 +84,14 @@
           updateGoButton();
         }
       });
-      li.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitPicks(); });
+      li.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') submitPicks();
+      });
     }
 
     $('goBtn').addEventListener('click', submitPicks);
     $('skipBtn').addEventListener('click', function () { submitPicks(true); });
+
     $('chatInput').addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
     });
@@ -96,11 +100,13 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PORTAL → PICKS
+  // PORTAL
   // ═══════════════════════════════════════════════════════════
+
   function enterPortal() {
-    if (state !== S.PORTAL) return;
-    state = S.PICKS;
+    if (state !== PORTAL) return;
+    state = PICKS;
+    log('entering picks');
     if (navigator.vibrate) navigator.vibrate(20);
     $('stage0').classList.add('gone');
     detectLocation();
@@ -111,8 +117,9 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CHIPS
+  // PICKS
   // ═══════════════════════════════════════════════════════════
+
   function selectChip(type, chip) {
     if (navigator.vibrate) navigator.vibrate(10);
     var cid = type === 'interest' ? 'interestChips' : 'locationChips';
@@ -121,7 +128,8 @@
     if (type === 'interest') selectedInterest = chip.getAttribute('data-value');
     else {
       selectedLocation = chip.getAttribute('data-value');
-      var li = $('locationInput'); if (li) li.value = '';
+      var li = $('locationInput');
+      if (li) li.value = '';
     }
     updateGoButton();
   }
@@ -134,12 +142,14 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PICKS → CHAT (skip scan, go straight to conversation)
+  // PICKS → CHAT (direct, no scan stage)
   // ═══════════════════════════════════════════════════════════
+
   function submitPicks(skip) {
-    if (state !== S.PICKS) return;
+    if (state !== PICKS) return;
     userName = $('nameInput').value.trim() || 'friend';
     userName = userName.charAt(0).toUpperCase() + userName.slice(1);
+
     var li = $('locationInput');
     if (li && li.value.trim() && !selectedLocation) selectedLocation = li.value.trim();
     if (skip) {
@@ -148,33 +158,47 @@
     }
     if (!selectedInterest) selectedInterest = 'Anything';
     if (!selectedLocation) selectedLocation = detectedLocation || 'Anywhere';
-    if (navigator.vibrate) navigator.vibrate(15);
 
+    if (navigator.vibrate) navigator.vibrate(15);
     extraction.interest = selectedInterest.toLowerCase();
     extraction.location = selectedLocation;
 
-    // Fade out picks, go straight to chat
+    log('submitting picks:', userName, extraction.interest, extraction.location);
+
+    // Fade out picks → show chat
     var s1 = $('stage1');
-    s1.style.opacity = '0'; s1.style.transition = 'opacity 0.4s';
+    s1.style.opacity = '0';
+    s1.style.transition = 'opacity 0.4s';
+
     setTimeout(function () {
       s1.style.display = 'none';
-      state = S.CHAT;
+      state = CHAT;
       $('bigName').textContent = userName;
-      $('stage3').classList.add('active');
+      $('stageChat').classList.add('active');
 
-      // Show thinking immediately — Claude is working
+      // Show thinking dots immediately
       showThinking();
 
-      // Hit the worker (USAJobs + Claude)
-      callWorker(null, false, function (data) {
+      // Call worker (USAJobs + Claude)
+      log('calling worker for first message...');
+      callWorker(null, false, function (err, data) {
         removeThinking();
+
+        if (err) {
+          log('worker error on first call:', err);
+          showError('Could not connect to the job search. ' + (err.message || err));
+          enableInput();
+          return;
+        }
+
+        log('worker response:', data.message ? data.message.substring(0, 80) + '...' : '(no message)');
 
         cachedJobs = data.jobs || [];
         totalResults = data.totalResults || 0;
         searchUrl = data.searchUrl || '';
         lastSearchKey = extraction.interest + '|' + extraction.location;
 
-        rawHistory.push({ role: 'assistant', content: data._raw || JSON.stringify(data) });
+        rawHistory.push({ role: 'assistant', content: data._raw || JSON.stringify({ message: data.message }) });
 
         animateSignal(data.signal || 25);
         updateResultsCount();
@@ -192,16 +216,27 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // WORKER CALL
+  // WORKER CALL — the core engine
   // ═══════════════════════════════════════════════════════════
-  function callWorker(userMessage, forceSearch, callback) {
-    if (!WORKER_URL) { callback(getFallbackResponse()); return; }
 
-    var controller, timeoutId;
+  function callWorker(userMessage, forceSearch, callback) {
+    if (!WORKER) {
+      log('no worker URL configured');
+      callback(new Error('No worker URL configured'), null);
+      return;
+    }
+
+    var controller = null;
+    var timeoutId = null;
     try {
       controller = new AbortController();
-      timeoutId = setTimeout(function () { controller.abort(); }, WORKER_TIMEOUT_MS);
-    } catch (e) {}
+      timeoutId = setTimeout(function () {
+        log('request timed out after ' + TIMEOUT + 'ms');
+        controller.abort();
+      }, TIMEOUT);
+    } catch (e) {
+      log('AbortController not supported');
+    }
 
     var payload = {
       name: userName,
@@ -215,16 +250,25 @@
       payload.cachedJobs = cachedJobs;
     }
 
+    log('POST /chat', { name: payload.name, interest: payload.interest_hint, location: payload.location_hint, historyLen: payload.history.length });
+
     var opts = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     };
     if (controller) opts.signal = controller.signal;
 
-    fetch(WORKER_URL + '/chat', opts)
-      .then(function (r) { if (timeoutId) clearTimeout(timeoutId); return r.json(); })
+    fetch(WORKER + '/chat', opts)
+      .then(function (r) {
+        if (timeoutId) clearTimeout(timeoutId);
+        log('response status:', r.status);
+        if (!r.ok) throw new Error('Server returned ' + r.status);
+        return r.json();
+      })
       .then(function (data) {
+        log('parsed response, message length:', (data.message || '').length, 'jobs:', (data.jobs || []).length);
+
         if (data.extraction) {
           extraction.interest = data.extraction.interest || extraction.interest;
           extraction.location = data.extraction.location || extraction.location;
@@ -237,31 +281,23 @@
         if (data.topPickJob) {
           topPickJob = data.topPickJob;
         }
-        callback(data);
+        callback(null, data);
       })
-      .catch(function () {
+      .catch(function (e) {
         if (timeoutId) clearTimeout(timeoutId);
-        callback(getFallbackResponse());
+        log('fetch error:', e.message || e);
+        callback(e, null);
       });
   }
 
   function getFallback() {
-    return userName + ', scanning the federal job board. Government positions are real — no ghost listings, no bait-and-switch. Let me find what fits.';
-  }
-
-  function getFallbackResponse() {
-    return {
-      message: getFallback(), extraction: extraction, signal: 20,
-      topPick: null, topPickJob: null, showJobs: [],
-      suggestions: ['What did you find?', 'Remote positions', 'Best paying', 'Broaden search'],
-      jobs: cachedJobs || [], totalResults: totalResults, searchUrl: searchUrl,
-      safetyFallbackUsed: true, _raw: JSON.stringify({ message: getFallback() })
-    };
+    return userName + ', the system is connecting. Try sending a message — the job database has thousands of federal positions waiting.';
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CHAT LOOP
+  // CHAT
   // ═══════════════════════════════════════════════════════════
+
   function sendChat() {
     if (isWaiting) return;
     var input = $('chatInput');
@@ -282,12 +318,23 @@
     rawHistory.push({ role: 'user', content: text });
     showThinking();
 
+    log('sending message:', text);
+
     var currentKey = extraction.interest + '|' + extraction.location;
     var needSearch = currentKey !== lastSearchKey;
 
-    callWorker(text, needSearch, function (data) {
+    callWorker(text, needSearch, function (err, data) {
       removeThinking();
-      rawHistory.push({ role: 'assistant', content: data._raw || JSON.stringify(data) });
+
+      if (err) {
+        log('worker error in chat:', err);
+        showError('Connection issue — try sending your message again.');
+        enableInput();
+        isWaiting = false;
+        return;
+      }
+
+      rawHistory.push({ role: 'assistant', content: data._raw || JSON.stringify({ message: data.message }) });
 
       signal = data.signal || signal;
       animateSignal(signal);
@@ -298,7 +345,7 @@
         lastSearchKey = '';
       }
 
-      addAssistantBubble(data.message, function () {
+      addAssistantBubble(data.message || 'Let me look into that...', function () {
         if (data.showJobs && data.showJobs.length > 0) {
           showJobCards(data.showJobs);
         }
@@ -313,32 +360,47 @@
     });
   }
 
-  // ─── CHAT UI ────────────────────────────────────────────────
+  // ─── Chat UI ──────────────────────────────────────────────
 
   function addAssistantBubble(text, callback) {
     var area = $('chatArea');
     var bubble = document.createElement('div');
     bubble.className = 'chat-bubble portal-bubble';
-    bubble.innerHTML = '<span class="pmark">&#x25CA;</span><span class="btxt"></span>';
+
+    // Structure: diamond mark + text span + cursor span
+    var mark = document.createElement('span');
+    mark.className = 'pmark';
+    mark.innerHTML = '&#x25CA;';
+    var btxt = document.createElement('span');
+    btxt.className = 'btxt';
+    var cur = document.createElement('span');
+    cur.className = 'cur';
+
+    bubble.appendChild(mark);
+    bubble.appendChild(btxt);
+    bubble.appendChild(cur);
     area.appendChild(bubble);
     scrollChat();
 
-    // Escape text for safe innerHTML rendering during typewriter
-    var safeText = esc(text || '');
-    var el = bubble.querySelector('.btxt');
+    // Typewriter using textContent (safe — no HTML injection)
+    var safeText = text || '';
     var i = 0;
 
     function type() {
       if (i >= safeText.length) {
-        // Highlight the user's name
-        el.innerHTML = el.innerHTML.replace(new RegExp(esc(userName), 'g'), '<span class="hl">' + esc(userName) + '</span>');
+        // Done typing — remove cursor, highlight username
+        cur.remove();
+        btxt.innerHTML = esc(safeText).replace(
+          new RegExp(esc(userName), 'g'),
+          '<span class="hl">' + esc(userName) + '</span>'
+        );
         if (callback) callback();
         return;
       }
-      el.innerHTML = safeText.substring(0, i + 1) + '<span class="cur"></span>';
+      btxt.textContent = safeText.substring(0, i + 1);
       i++;
       scrollChat();
-      setTimeout(type, 12 + Math.random() * 16);
+      setTimeout(type, 10 + Math.random() * 14);
     }
     type();
   }
@@ -352,25 +414,36 @@
     scrollChat();
   }
 
+  function showError(msg) {
+    var area = $('chatArea');
+    var b = document.createElement('div');
+    b.className = 'chat-bubble error-bubble';
+    b.textContent = msg;
+    area.appendChild(b);
+    scrollChat();
+    log('error shown to user:', msg);
+  }
+
   function showThinking() {
     var area = $('chatArea');
     var el = document.createElement('div');
-    el.className = 'chat-bubble portal-bubble thinking'; el.id = 'thinking';
+    el.className = 'chat-bubble portal-bubble thinking';
+    el.id = 'thinking';
     el.innerHTML = '<span class="pmark">&#x25CA;</span><span class="dots"><span>.</span><span>.</span><span>.</span></span>';
     area.appendChild(el);
     scrollChat();
   }
 
-  function removeThinking() { var el = $('thinking'); if (el) el.remove(); }
+  function removeThinking() {
+    var el = $('thinking');
+    if (el) el.remove();
+  }
 
-  function scrollChat() { var a = $('chatArea'); a.scrollTop = a.scrollHeight; }
-
-  // ─── JOB CARDS ──────────────────────────────────────────────
+  // ─── Job Cards ────────────────────────────────────────────
 
   function showJobCards(jobs) {
     if (!jobs || !jobs.length) return;
     var area = $('chatArea');
-
     var container = document.createElement('div');
     container.className = 'job-cards';
 
@@ -406,7 +479,6 @@
   function showFeaturedJob(job) {
     if (!job) return;
     var area = $('chatArea');
-
     var card = document.createElement('a');
     card.className = 'featured-job';
     card.href = job.applyUrl || job.url || '#';
@@ -440,18 +512,15 @@
     return range + per;
   }
 
-  function esc(s) {
-    var d = document.createElement('div');
-    d.textContent = s || '';
-    return d.innerHTML;
-  }
-
-  // ─── SUGGESTIONS ────────────────────────────────────────────
+  // ─── Suggestions ──────────────────────────────────────────
 
   function showSuggestions(chips) {
     var row = $('suggestRow');
     row.innerHTML = '';
-    if (!chips || !chips.length) { row.classList.remove('visible'); return; }
+    if (!chips || !chips.length) {
+      row.classList.remove('visible');
+      return;
+    }
     for (var i = 0; i < chips.length; i++) {
       (function (label) {
         var btn = document.createElement('button');
@@ -464,9 +533,11 @@
     setTimeout(function () { row.classList.add('visible'); }, 100);
   }
 
-  function hideSuggestions() { $('suggestRow').classList.remove('visible'); }
+  function hideSuggestions() {
+    $('suggestRow').classList.remove('visible');
+  }
 
-  // ─── INPUT ──────────────────────────────────────────────────
+  // ─── Input ────────────────────────────────────────────────
 
   function enableInput() {
     $('chatInput').disabled = false;
@@ -479,7 +550,7 @@
     $('chatSend').disabled = true;
   }
 
-  // ─── SIGNAL ─────────────────────────────────────────────────
+  // ─── Signal ───────────────────────────────────────────────
 
   function animateSignal(target) {
     var fill = $('signalFill'), pct = $('signalPct'), label = $('signalLabel');
@@ -510,20 +581,20 @@
     tick();
   }
 
-  // ─── RESULTS COUNT ──────────────────────────────────────────
+  // ─── Results Count ────────────────────────────────────────
 
   function updateResultsCount() {
     var el = $('resultsCount');
     if (!el) return;
     if (totalResults > 0) {
-      el.textContent = totalResults + ' federal positions found';
+      el.textContent = totalResults.toLocaleString() + ' federal positions found';
       el.style.display = 'block';
     } else {
       el.style.display = 'none';
     }
   }
 
-  // ─── CTA ────────────────────────────────────────────────────
+  // ─── CTA ──────────────────────────────────────────────────
 
   function updateCTA(data) {
     var section = $('ctaSection');
@@ -544,7 +615,7 @@
       btn.setAttribute('data-url', topPickJob.applyUrl || topPickJob.url || '');
       if (fine) fine.textContent = topPickJob.org + ' \u00b7 ' + formatSalary(topPickJob.salaryMin, topPickJob.salaryMax, topPickJob.salaryPeriod);
     } else if (totalResults > 0) {
-      btn.textContent = 'Browse all ' + totalResults + ' positions \u2192';
+      btn.textContent = 'Browse all ' + totalResults.toLocaleString() + ' positions \u2192';
       btn.classList.remove('hot');
       btn.setAttribute('data-url', searchUrl);
       if (fine) fine.textContent = 'USAJobs.gov \u00b7 keep chatting to find your match';
@@ -556,27 +627,51 @@
     }
   }
 
-  // ─── APPLY ──────────────────────────────────────────────────
+  // ─── Apply ────────────────────────────────────────────────
 
   function goToApply() {
     var btn = $('ctaBtn');
     var url = btn.getAttribute('data-url');
-
-    if (url) {
-      window.open(url, '_blank', 'noopener');
-    } else if (topPickJob) {
-      window.open(topPickJob.applyUrl || topPickJob.url, '_blank', 'noopener');
-    } else if (searchUrl) {
-      window.open(searchUrl, '_blank', 'noopener');
-    } else {
-      window.open('https://www.usajobs.gov', '_blank', 'noopener');
-    }
+    if (url) window.open(url, '_blank', 'noopener');
+    else if (topPickJob) window.open(topPickJob.applyUrl || topPickJob.url, '_blank', 'noopener');
+    else if (searchUrl) window.open(searchUrl, '_blank', 'noopener');
+    else window.open('https://www.usajobs.gov', '_blank', 'noopener');
   }
 
-  // ─── TICKER ─────────────────────────────────────────────────
+  // ─── Geo ──────────────────────────────────────────────────
+
+  function detectLocation() {
+    if (!WORKER) return;
+    fetch(WORKER + '/geo')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.detected && d.locationString) {
+          log('detected location:', d.locationString);
+          detectedLocation = d.locationString;
+          injectDetectedChip(detectedLocation);
+        }
+      })
+      .catch(function (e) { log('geo detection failed:', e.message); });
+  }
+
+  function injectDetectedChip(loc) {
+    var c = $('locationChips');
+    if (!c || c.querySelector('[data-detected]')) return;
+    var chip = document.createElement('button');
+    chip.className = 'pick-chip detected-chip';
+    chip.setAttribute('data-value', loc);
+    chip.setAttribute('data-detected', 'true');
+    chip.textContent = loc;
+    c.insertBefore(chip, c.firstChild);
+    chip.addEventListener('click', function () { selectChip('location', chip); });
+    setTimeout(function () { selectChip('location', chip); chip.classList.add('pop'); }, 300);
+  }
+
+  // ─── Ticker ───────────────────────────────────────────────
 
   function startTicker() {
     var ticker = $('liveTicker'), textEl = $('ltText');
+    if (!ticker || !textEl) return;
     var names = ['Sarah','Mike','Jessica','David','Ashley','Chris','Maria','James','Taylor','Alex'];
     var agencies = ['VA','DoD','HHS','USDA','DHS','SSA','EPA','NASA','DOJ','Treasury'];
 
@@ -605,7 +700,7 @@
     setTimeout(show, 500);
   }
 
-  // ─── BOOT ──────────────────────────────────────────────────
+  // ─── Boot ─────────────────────────────────────────────────
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 

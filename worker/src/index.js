@@ -1,32 +1,24 @@
 // ═══════════════════════════════════════════════════════════════
-// THE GATE WORKER v5 — Intelligent job matchmaker.
-// USAJobs.gov API + Claude conversation → specific job application.
+// THE GATE WORKER v6 — Federal job matchmaker.
+// USAJobs.gov API + Claude → converge on a specific job.
 // ═══════════════════════════════════════════════════════════════
 
-// ─── CORS ──────────────────────────────────────────────────────
+// ─── CORS (always allow — this is a public API) ─────────────
 
-function getAllowedOrigins(env) {
-  return (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-}
-
-function corsHeaders(request, env) {
-  const origin = request.headers.get('Origin') || '';
-  const allowed = getAllowedOrigins(env);
-  const h = {
+function corsHeaders(request) {
+  const origin = request.headers.get('Origin') || '*';
+  return {
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400',
   };
-  if (allowed.length === 0 || allowed.includes(origin)) {
-    h['Access-Control-Allow-Origin'] = origin || '*';
-  }
-  return h;
 }
 
-function jsonResponse(data, request, env, status) {
+function json(data, request, status) {
   return new Response(JSON.stringify(data), {
     status: status || 200,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders(request, env) },
+    headers: { 'Content-Type': 'application/json', ...corsHeaders(request) },
   });
 }
 
@@ -43,25 +35,20 @@ async function searchUSAJobs(keyword, location, env) {
     params.set('LocationName', location);
     params.set('Radius', '50');
   }
-  if (location === 'Remote') {
-    params.set('RemoteIndicator', 'True');
-  }
+  if (location === 'Remote') params.set('RemoteIndicator', 'True');
   params.set('ResultsPerPage', '20');
   params.set('WhoMayApply', 'Public');
   params.set('SortField', 'opendate');
   params.set('SortDirection', 'desc');
 
-  const url = 'https://data.usajobs.gov/api/search?' + params.toString();
-
   try {
-    const res = await fetch(url, {
+    const res = await fetch('https://data.usajobs.gov/api/search?' + params.toString(), {
       headers: {
         'Authorization-Key': env.USAJOBS_API_KEY,
         'User-Agent': env.USAJOBS_EMAIL,
         'Host': 'data.usajobs.gov',
       },
     });
-
     if (!res.ok) return { items: [], total: 0 };
 
     const data = await res.json();
@@ -72,7 +59,6 @@ async function searchUSAJobs(keyword, location, env) {
       const d = r.MatchedObjectDescriptor || {};
       const pay = d.PositionRemuneration?.[0] || {};
       const loc = d.PositionLocation?.[0] || {};
-
       return {
         title: d.PositionTitle || 'Untitled Position',
         org: d.OrganizationName || '',
@@ -85,57 +71,54 @@ async function searchUSAJobs(keyword, location, env) {
         schedule: d.PositionSchedule?.[0]?.Name || '',
         url: d.PositionURI || '',
         applyUrl: d.ApplyURI?.[0] || d.PositionURI || '',
-        closing: d.ApplicationCloseDate ? formatDate(d.ApplicationCloseDate) : '',
+        closing: d.ApplicationCloseDate ? fmtDate(d.ApplicationCloseDate) : '',
         qualifications: d.QualificationSummary ? d.QualificationSummary.slice(0, 300) : '',
       };
     });
-
     return { items, total };
   } catch {
     return { items: [], total: 0 };
   }
 }
 
-function formatDate(iso) {
-  try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch { return ''; }
+function fmtDate(iso) {
+  try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+  catch { return ''; }
 }
 
-function formatSalary(min, max, period) {
+function fmtSalary(min, max, period) {
   if (!min && !max) return '';
-  const fmt = n => { const num = parseInt(n); return isNaN(num) ? n : '$' + num.toLocaleString('en-US'); };
-  const range = min && max ? fmt(min) + ' – ' + fmt(max) : fmt(min || max);
+  const f = n => { const v = parseInt(n); return isNaN(v) ? n : '$' + v.toLocaleString('en-US'); };
+  const range = min && max ? f(min) + ' – ' + f(max) : f(min || max);
   const per = period === 'Per Year' ? '/yr' : period === 'Per Hour' ? '/hr' : '/' + (period || 'yr');
   return range + per;
 }
 
-function formatJobsForClaude(jobResult) {
-  if (!jobResult.items.length) return '\n[USAJOBS: No results found for this search.]\n';
-
-  let text = `\n[USAJOBS LIVE DATA: ${jobResult.total} total positions. Top ${jobResult.items.length} shown with index numbers.]\n`;
-  jobResult.items.forEach((j, i) => {
-    const sal = formatSalary(j.salaryMin, j.salaryMax, j.salaryPeriod);
-    text += `[${i}] ${j.title} | ${j.org} (${j.dept}) | ${j.location} | ${sal}`;
-    if (j.grade) text += ` | ${j.grade}`;
-    if (j.schedule) text += ` | ${j.schedule}`;
-    if (j.closing) text += ` | Closes ${j.closing}`;
-    text += '\n';
-    if (j.qualifications) text += `    Quals: ${j.qualifications}\n`;
+function jobsForClaude(result) {
+  if (!result.items.length) return '\n[USAJOBS: No results found for this search.]\n';
+  let t = `\n[USAJOBS LIVE DATA: ${result.total} total positions. Top ${result.items.length} shown.]\n`;
+  result.items.forEach((j, i) => {
+    const sal = fmtSalary(j.salaryMin, j.salaryMax, j.salaryPeriod);
+    t += `[${i}] ${j.title} | ${j.org} (${j.dept}) | ${j.location} | ${sal}`;
+    if (j.grade) t += ` | ${j.grade}`;
+    if (j.schedule) t += ` | ${j.schedule}`;
+    if (j.closing) t += ` | Closes ${j.closing}`;
+    t += '\n';
+    if (j.qualifications) t += `    Quals: ${j.qualifications}\n`;
   });
-  return text;
+  return t;
 }
 
-function buildSearchUrl(keyword, location) {
-  const params = new URLSearchParams();
-  if (keyword && keyword !== 'anything') params.set('k', keyword);
-  if (location && location !== 'Anywhere' && location !== 'near me') params.set('l', location);
-  return 'https://www.usajobs.gov/Search/Results?' + params.toString();
+function searchUrl(keyword, location) {
+  const p = new URLSearchParams();
+  if (keyword && keyword !== 'anything') p.set('k', keyword);
+  if (location && location !== 'Anywhere' && location !== 'near me') p.set('l', location);
+  return 'https://www.usajobs.gov/Search/Results?' + p.toString();
 }
 
-// ─── CLAUDE ────────────────────────────────────────────────────
+// ─── CLAUDE SYSTEM PROMPT ────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are a job-matching intelligence inside a mysterious portal. You have live access to USAJobs.gov federal job listings. Your single mission: guide this person to a specific federal job they should apply for RIGHT NOW.
+const SYSTEM = `You are a job-matching intelligence inside a mysterious portal. You have live access to USAJobs.gov federal job listings. Your single mission: guide this person to a specific federal job they should apply for RIGHT NOW.
 
 You're not a generic chatbot. You're something they've never talked to before — a system that scanned the entire federal hiring database and is about to hand them the key to a career. Direct. Witty. A little conspiratorial. Like you cracked open the government hiring machine and you're showing them what's inside.
 
@@ -174,80 +157,70 @@ FIELD RULES:
 
 // ─── FALLBACK ──────────────────────────────────────────────────
 
-function buildFallback(name, interest, location) {
+function fallback(name, interest, location) {
   const n = name || 'friend';
   const i = (interest || 'jobs').toLowerCase();
   const l = location || 'anywhere';
   return {
     message: `${n}, I just hit the federal hiring database. Scanning ${i} positions${l !== 'anywhere' ? ' near ' + l : ''}. The government has its own language for job titles — let me translate and find what's actually worth your time.`,
     extraction: { interest: i, location: l },
-    signal: 20,
-    topPick: null,
-    topPickJob: null,
+    signal: 20, topPick: null, topPickJob: null,
     showJobs: [],
     suggestions: ['What did you find?', 'I have experience', 'Remote only', 'Best paying?'],
-    jobs: [],
-    totalResults: 0,
-    searchUrl: buildSearchUrl(i, l),
-    safetyFallbackUsed: true,
-    _raw: '',
+    jobs: [], totalResults: 0,
+    searchUrl: searchUrl(i, l),
+    safetyFallbackUsed: true, _raw: '',
   };
 }
 
-// ─── GEO ───────────────────────────────────────────────────────
-
-function handleGeo(request, env) {
-  const cf = request.cf || {};
-  return jsonResponse({
-    city: cf.city || '',
-    region: cf.region || '',
-    country: cf.country || 'US',
-    timezone: cf.timezone || '',
-    locationString: cf.city && cf.region ? `${cf.city}, ${cf.region}` : cf.city || cf.region || '',
-    detected: !!cf.city,
-  }, request, env);
-}
-
-// ─── MAIN HANDLER ──────────────────────────────────────────────
+// ─── MAIN ──────────────────────────────────────────────────────
 
 export default {
   async fetch(request, env) {
+    // CORS preflight
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders(request, env) });
+      return new Response(null, { status: 204, headers: corsHeaders(request) });
     }
 
     const url = new URL(request.url);
 
-    if (url.pathname === '/geo' && request.method === 'GET') {
-      return handleGeo(request, env);
+    // Geo detection
+    if (url.pathname === '/geo') {
+      const cf = request.cf || {};
+      return json({
+        city: cf.city || '', region: cf.region || '', country: cf.country || 'US',
+        locationString: cf.city && cf.region ? `${cf.city}, ${cf.region}` : cf.city || cf.region || '',
+        detected: !!cf.city,
+      }, request);
     }
 
-    if (url.pathname === '/health' && request.method === 'GET') {
-      return jsonResponse({
-        status: 'ok',
+    // Health check
+    if (url.pathname === '/health') {
+      return json({
+        status: 'ok', version: 6,
         hasAnthropicKey: !!env.ANTHROPIC_API_KEY,
         hasUsajobsKey: !!env.USAJOBS_API_KEY,
         hasUsajobsEmail: !!env.USAJOBS_EMAIL,
         allKeysConfigured: !!(env.ANTHROPIC_API_KEY && env.USAJOBS_API_KEY && env.USAJOBS_EMAIL),
-      }, request, env);
+      }, request);
     }
 
+    // Chat endpoint
     if (url.pathname !== '/chat' || request.method !== 'POST') {
-      return jsonResponse({ error: 'Not found' }, request, env, 404);
+      return json({ error: 'Not found' }, request, 404);
     }
 
     if (!env.ANTHROPIC_API_KEY) {
-      const fb = buildFallback('friend', 'jobs', 'anywhere');
-      fb.message = 'Worker is running but ANTHROPIC_API_KEY is not configured. Set it in Cloudflare Dashboard → Workers → Settings → Variables.';
-      fb._raw = JSON.stringify(fb);
-      return jsonResponse(fb, request, env);
+      const fb = fallback('friend', 'jobs', 'anywhere');
+      fb.message = 'Worker running but ANTHROPIC_API_KEY not set. Add it in Cloudflare Dashboard → Workers → Settings → Variables.';
+      return json(fb, request);
     }
 
     try {
       const body = await request.json();
       const { name, interest_hint, location_hint, history, cachedJobs, forceSearch } = body;
 
-      // Step 1: Get job data
+      // 1. Get jobs
       let jobResult;
       if (cachedJobs && cachedJobs.length > 0 && !forceSearch) {
         jobResult = { items: cachedJobs, total: cachedJobs.length };
@@ -255,28 +228,24 @@ export default {
         jobResult = await searchUSAJobs(interest_hint, location_hint, env);
       }
 
-      let jobContext = formatJobsForClaude(jobResult);
+      let jobCtx = jobsForClaude(jobResult);
       if (jobResult.missingKeys) {
-        jobContext += '\n[SYSTEM NOTE: USAJOBS_API_KEY or USAJOBS_EMAIL not configured. Using fallback. Tell the user the portal is connecting but live job data requires API setup.]\n';
+        jobCtx += '\n[SYSTEM: USAJobs API keys not configured. Tell user live data requires setup.]\n';
       }
-      const searchUrl = buildSearchUrl(interest_hint, location_hint);
+      const sUrl = searchUrl(interest_hint, location_hint);
       const model = env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
 
-      // Step 2: Build messages
-      const contextMessage = `My name is ${name || 'friend'}. I'm interested in ${interest_hint || 'work'} in ${location_hint || 'anywhere'}.\n${jobContext}`;
-      const messages = [{ role: 'user', content: contextMessage }];
-
+      // 2. Build messages
+      const ctx = `My name is ${name || 'friend'}. I'm interested in ${interest_hint || 'work'} in ${location_hint || 'anywhere'}.\n${jobCtx}`;
+      const messages = [{ role: 'user', content: ctx }];
       if (history && history.length > 0) {
-        for (const h of history.slice(-16)) {
-          messages.push({ role: h.role, content: h.content });
-        }
+        for (const h of history.slice(-16)) messages.push({ role: h.role, content: h.content });
       }
-
       if (messages[messages.length - 1].role === 'assistant') {
         messages.push({ role: 'user', content: 'Continue.' });
       }
 
-      // Step 3: Call Claude
+      // 3. Call Claude
       const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -284,27 +253,26 @@ export default {
           'x-api-key': env.ANTHROPIC_API_KEY,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: 500,
-          system: SYSTEM_PROMPT,
-          messages,
-        }),
+        body: JSON.stringify({ model, max_tokens: 500, system: SYSTEM, messages }),
       });
 
-      if (!claudeRes.ok) throw new Error('Claude API ' + claudeRes.status);
+      if (!claudeRes.ok) {
+        const errText = await claudeRes.text().catch(() => '');
+        throw new Error('Claude API ' + claudeRes.status + ': ' + errText.slice(0, 200));
+      }
 
       const claudeData = await claudeRes.json();
       const rawText = claudeData.content?.[0]?.text || '';
 
-      // Step 4: Parse
+      // 4. Parse Claude's JSON response
       let parsed;
       try {
         const obj = JSON.parse(rawText);
         const sig = Math.min(99, Math.max(1, Number(obj.signal) || 30));
-        const tp = (obj.topPick !== null && obj.topPick !== undefined && obj.topPick >= 0 && obj.topPick < jobResult.items.length)
+        const tp = (obj.topPick !== null && obj.topPick !== undefined &&
+                    obj.topPick >= 0 && obj.topPick < jobResult.items.length)
           ? Number(obj.topPick) : null;
-        const showJobs = Array.isArray(obj.showJobs)
+        const show = Array.isArray(obj.showJobs)
           ? obj.showJobs.filter(i => typeof i === 'number' && i >= 0 && i < jobResult.items.length).slice(0, 5)
           : [];
 
@@ -317,32 +285,35 @@ export default {
           signal: sig,
           topPick: tp,
           topPickJob: tp !== null ? jobResult.items[tp] : null,
-          showJobs: showJobs.map(i => jobResult.items[i]).filter(Boolean),
+          showJobs: show.map(i => jobResult.items[i]).filter(Boolean),
           suggestions: Array.isArray(obj.suggestions)
             ? obj.suggestions.map(s => String(s).slice(0, 50)).slice(0, 4)
             : ['Tell me more', 'What else?'],
           refineSearch: !!obj.refineSearch,
           jobs: jobResult.items.slice(0, 20),
           totalResults: jobResult.total,
-          searchUrl,
+          searchUrl: sUrl,
           safetyFallbackUsed: false,
           _raw: rawText,
         };
       } catch {
-        const fb = buildFallback(name, interest_hint, location_hint);
+        // Claude returned non-JSON — use fallback with real jobs
+        const fb = fallback(name, interest_hint, location_hint);
         fb.jobs = jobResult.items.slice(0, 20);
         fb.totalResults = jobResult.total;
         fb.showJobs = jobResult.items.slice(0, 3);
-        fb.searchUrl = searchUrl;
-        fb._raw = JSON.stringify(fb);
+        fb.searchUrl = sUrl;
+        fb._raw = rawText;
         parsed = fb;
       }
 
-      return jsonResponse(parsed, request, env);
-    } catch {
-      const fb = buildFallback('friend', 'jobs', 'anywhere');
+      return json(parsed, request);
+    } catch (e) {
+      // Return error message so frontend can display it
+      const fb = fallback('friend', 'jobs', 'anywhere');
+      fb.message = 'Something went wrong: ' + (e.message || 'unknown error') + '. Try again in a moment.';
       fb._raw = JSON.stringify(fb);
-      return jsonResponse(fb, request, env);
+      return json(fb, request, 500);
     }
   },
 };

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#050510">
-<title>&#x25CA; The Gate</title>
+<title>&#x25CA; Federal Job Finder</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -22,6 +22,7 @@
     --magenta: #e040fb;
     --mag-glow: rgba(224,64,251,0.08);
     --gold: #ffd740;
+    --red: #ff4444;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{
@@ -114,34 +115,17 @@
   .skip-btn{margin-top:10px;font-size:11px;color:var(--dim);
     cursor:pointer;border:none;background:none;letter-spacing:1px}
 
-  /* ───── SCAN ───── */
-  .stage-2{display:none;flex-direction:column;align-items:center;
-    justify-content:center;text-align:center;
-    width:100%;height:100%;position:absolute;inset:0;z-index:10;padding:20px}
-  .stage-2.active{display:flex;animation:up .5s ease both}
-
-  .scan-ring{width:80px;height:80px;border-radius:50%;
-    border:2px solid var(--dim);border-top-color:var(--cyan);
-    animation:spin .8s linear infinite;margin-bottom:24px}
-  .scan-lines{width:100%;max-width:300px}
-  .scan-line{font-family:'JetBrains Mono',monospace;font-size:12px;
-    color:var(--dim);text-align:left;padding:4px 0;opacity:0}
-  .scan-line.done{color:var(--cyan);opacity:1}
-  .scan-line .check{color:var(--green);margin-right:6px}
-
-  /* ───── CHAT (stage 3) ───── */
-  .stage-3{display:none;flex-direction:column;
+  /* ───── CHAT ───── */
+  .stage-chat{display:none;flex-direction:column;
     width:100%;height:100%;position:absolute;inset:0;z-index:10;padding:0}
-  .stage-3.active{display:flex;animation:up .6s ease both}
+  .stage-chat.active{display:flex;animation:up .6s ease both}
 
-  /* Header area */
   .chat-header{padding:10px 16px 6px;text-align:center;flex-shrink:0}
   .greeting{font-size:11px;color:var(--cyan);
     font-family:'JetBrains Mono',monospace;letter-spacing:2px;text-transform:uppercase}
   .big-name{font-size:22px;font-weight:700;color:var(--white);
     text-shadow:0 0 30px var(--cyan-glow)}
 
-  /* Signal bar */
   .signal{margin:6px 16px 0;padding:8px 14px;
     background:var(--surface);border:1px solid var(--dim);
     border-radius:12px;flex-shrink:0}
@@ -154,8 +138,9 @@
   .signal-fill{width:0;height:100%;border-radius:2px;background:var(--cyan);transition:width .3s}
   .signal-label{font-family:'JetBrains Mono',monospace;font-size:8px;
     color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:4px}
+  .results-count{font-family:'JetBrains Mono',monospace;font-size:9px;
+    color:var(--green);letter-spacing:.5px;margin-top:3px;display:none}
 
-  /* Scrollable chat area */
   .chat-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
     padding:10px 16px;min-height:0}
 
@@ -166,6 +151,8 @@
   .user-bubble{background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);
     margin-left:auto;text-align:right;border-top-right-radius:4px;
     color:var(--cyan);font-size:13px;font-weight:500;max-width:75%}
+  .error-bubble{background:rgba(255,68,68,0.06);border:1px solid rgba(255,68,68,0.2);
+    border-top-left-radius:4px;color:var(--red);font-size:12px}
 
   .pmark{color:var(--magenta);font-size:10px;margin-right:6px}
   .btxt{color:var(--white)}
@@ -198,7 +185,7 @@
   .jc-apply{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;
     color:var(--green);margin-top:5px;letter-spacing:.5px;text-transform:uppercase}
 
-  /* Featured job — the converged top pick */
+  /* Featured job */
   .featured-job{display:block;margin:10px 0;padding:14px 16px;
     background:linear-gradient(135deg,rgba(0,232,90,.06),rgba(0,212,255,.04));
     border:2px solid var(--green);border-radius:14px;
@@ -224,11 +211,7 @@
     text-align:center;letter-spacing:1px;text-transform:uppercase;
     box-shadow:0 0 12px var(--green-glow)}
 
-  /* Results count */
-  .results-count{font-family:'JetBrains Mono',monospace;font-size:9px;
-    color:var(--green);letter-spacing:.5px;margin-top:3px;display:none}
-
-  /* Suggestions + input area — pinned to bottom */
+  /* Footer */
   .chat-footer{flex-shrink:0;padding:6px 16px 10px;
     background:linear-gradient(transparent,var(--void) 20%)}
 
@@ -261,11 +244,10 @@
   .send-btn:active{transform:scale(0.92)}
   .send-btn:disabled{opacity:.3;cursor:default}
 
-  /* CTA section */
+  /* CTA */
   .cta-section{flex-shrink:0;padding:0 16px 10px;text-align:center;
     opacity:0;pointer-events:none;transition:opacity .5s}
   .cta-section.visible{opacity:1;pointer-events:auto}
-
   .cta-btn{display:block;width:100%;padding:13px;
     font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
     letter-spacing:.5px;text-align:center;text-decoration:none;
@@ -290,7 +272,7 @@
   .lt-close{margin-left:auto;font-size:14px;color:var(--dim);
     cursor:pointer;padding:4px;flex-shrink:0}
 
-  /* BG */
+  /* BG mesh */
   .mesh{position:fixed;inset:0;pointer-events:none;z-index:0;
     background:
       radial-gradient(ellipse at 20% 30%,rgba(0,212,255,.04) 0%,transparent 50%),
@@ -371,20 +353,8 @@
     <button class="skip-btn" id="skipBtn">skip everything &#x2192;</button>
   </div>
 
-  <!-- SCAN -->
-  <div class="stage-2" id="stage2">
-    <div class="scan-ring"></div>
-    <div class="scan-lines">
-      <div class="scan-line" id="sl0">connecting to USAJobs.gov...</div>
-      <div class="scan-line" id="sl1">mapping opportunities...</div>
-      <div class="scan-line" id="sl2">filtering listings...</div>
-      <div class="scan-line" id="sl3">cross-referencing federal databases...</div>
-      <div class="scan-line" id="sl4">calibrating signal...</div>
-    </div>
-  </div>
-
   <!-- CHAT -->
-  <div class="stage-3" id="stage3">
+  <div class="stage-chat" id="stageChat">
     <div class="chat-header">
       <div class="greeting">signal for</div>
       <div class="big-name" id="bigName"></div>
