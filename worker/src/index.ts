@@ -48,8 +48,8 @@ function jsonResponse(data: any, request: Request, env: Env, status?: number): R
 
 // ─── USAJOBS API ───────────────────────────────────────────────
 
-async function searchUSAJobs(keyword: string, location: string, env: Env): Promise<{ items: JobItem[]; total: number }> {
-  if (!env.USAJOBS_API_KEY || !env.USAJOBS_EMAIL) return { items: [], total: 0 };
+async function searchUSAJobs(keyword: string, location: string, env: Env): Promise<{ items: JobItem[]; total: number; missingKeys?: boolean }> {
+  if (!env.USAJOBS_API_KEY || !env.USAJOBS_EMAIL) return { items: [], total: 0, missingKeys: true };
 
   const params = new URLSearchParams();
   if (keyword && keyword !== 'anything') params.set('Keyword', keyword);
@@ -220,11 +220,23 @@ export default {
 
     const url = new URL(request.url);
     if (url.pathname === '/geo' && request.method === 'GET') return handleGeo(request, env);
+
+    if (url.pathname === '/health' && request.method === 'GET') {
+      return jsonResponse({
+        status: 'ok',
+        hasAnthropicKey: !!env.ANTHROPIC_API_KEY,
+        hasUsajobsKey: !!env.USAJOBS_API_KEY,
+        hasUsajobsEmail: !!env.USAJOBS_EMAIL,
+        allKeysConfigured: !!(env.ANTHROPIC_API_KEY && env.USAJOBS_API_KEY && env.USAJOBS_EMAIL),
+      }, request, env);
+    }
+
     if (url.pathname !== '/chat' || request.method !== 'POST') {
       return jsonResponse({ error: 'Not found' }, request, env, 404);
     }
     if (!env.ANTHROPIC_API_KEY) {
       const fb = buildFallback('friend', 'jobs', 'anywhere');
+      fb.message = 'Worker is running but ANTHROPIC_API_KEY is not configured. Set it in Cloudflare Dashboard → Workers → Settings → Variables.';
       fb._raw = JSON.stringify(fb);
       return jsonResponse(fb, request, env);
     }
@@ -240,7 +252,10 @@ export default {
         jobResult = await searchUSAJobs(interest_hint, location_hint, env);
       }
 
-      const jobContext = formatJobsForClaude(jobResult);
+      let jobContext = formatJobsForClaude(jobResult);
+      if (jobResult.missingKeys) {
+        jobContext += '\n[SYSTEM NOTE: USAJOBS_API_KEY or USAJOBS_EMAIL not configured. Using fallback. Tell the user the portal is connecting but live job data requires API setup.]\n';
+      }
       const searchUrl = buildSearchUrl(interest_hint, location_hint);
       const model = env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
 
