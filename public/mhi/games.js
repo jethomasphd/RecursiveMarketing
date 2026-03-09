@@ -39,7 +39,6 @@
     down: '<polyline points="6 9 12 15 18 9"/>',
     rotate: '<path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
     slam: '<polyline points="7 13 12 18 17 13"/><line x1="12" y1="6" x2="12" y2="18"/>',
-    shoot: '<circle cx="12" cy="8" r="3" fill="currentColor" stroke="none"/><line x1="12" y1="13" x2="12" y2="19"/>',
     tend: '<path d="M12 3C12 3 8 8 8 12a4 4 0 0 0 8 0c0-4-4-9-4-9z"/>',
   };
 
@@ -205,8 +204,8 @@
       controls: [
         { icon: ICON.left, label: 'Left' },
         { icon: ICON.up, label: 'Up' },
-        { icon: ICON.right, label: 'Right' },
-        { icon: ICON.down, label: 'Down' }
+        { icon: ICON.down, label: 'Down' },
+        { icon: ICON.right, label: 'Right' }
       ],
       start: function (maxW, maxH) {
         var sq = Math.min(maxW, maxH);
@@ -265,8 +264,8 @@
       onControl: function (i) {
         if (i === 0 && dir.x !== 1) dir = { x: -1, y: 0 };
         else if (i === 1 && dir.y !== 1) dir = { x: 0, y: -1 };
-        else if (i === 2 && dir.x !== -1) dir = { x: 1, y: 0 };
-        else if (i === 3 && dir.y !== -1) dir = { x: 0, y: 1 };
+        else if (i === 2 && dir.y !== -1) dir = { x: 0, y: 1 };
+        else if (i === 3 && dir.x !== -1) dir = { x: 1, y: 0 };
         return [];
       }
     };
@@ -392,217 +391,6 @@
       onControl: function (i) {
         if (i === 0) paddle.x = Math.max(paddle.w / 2, paddle.x - 20);
         else if (i === 2) paddle.x = Math.min(W - paddle.w / 2, paddle.x + 20);
-        return [];
-      }
-    };
-  })();
-
-  // ═══════════════════════════════════════════════════════════
-  // 4. BUBBLE SHOOTER — pattern matching, satisfying feedback
-  //    Aim and shoot colored bubbles. Match 3+ to clear.
-  // ═══════════════════════════════════════════════════════════
-
-  var bubbles = (function () {
-    var COLS = 8, ROWS = 12, rad, gridData;
-    var angle, current, shooting, shot;
-    var W, H;
-    var SHOT_SPEED = 6;
-    var BUBBLE_COLORS = ['#c4a35a', '#7a9e8e', '#6a8fa7', '#b07a7a', '#b8856e', '#8e7299'];
-
-    function bCol() { return BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)]; }
-
-    function cellCenter(r, c) {
-      var d = rad * 2;
-      var ox = (r % 2 === 1) ? rad : 0;
-      return { x: c * d + rad + ox, y: r * d * 0.87 + rad };
-    }
-
-    function nearestCell(px, py) {
-      var best = -1, bestD = Infinity;
-      for (var r = 0; r < ROWS; r++) {
-        var cols = (r % 2 === 1) ? COLS - 1 : COLS;
-        for (var c = 0; c < cols; c++) {
-          if (gridData[r][c]) continue;
-          var cc = cellCenter(r, c);
-          var d = Math.sqrt((px - cc.x) * (px - cc.x) + (py - cc.y) * (py - cc.y));
-          if (d < bestD) { bestD = d; best = { r: r, c: c }; }
-        }
-      }
-      return best;
-    }
-
-    function neighbors(r, c) {
-      var n = [];
-      var even = r % 2 === 0;
-      var offsets = even
-        ? [[-1, -1], [-1, 0], [0, -1], [0, 1], [1, -1], [1, 0]]
-        : [[-1, 0], [-1, 1], [0, -1], [0, 1], [1, 0], [1, 1]];
-      for (var i = 0; i < offsets.length; i++) {
-        var nr = r + offsets[i][0], nc = c + offsets[i][1];
-        var maxC = (nr % 2 === 1) ? COLS - 1 : COLS;
-        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < maxC) n.push({ r: nr, c: nc });
-      }
-      return n;
-    }
-
-    function findMatch(r, c) {
-      var color = gridData[r][c];
-      if (!color) return [];
-      var visited = {}, group = [];
-      var queue = [{ r: r, c: c }];
-      visited[r + ',' + c] = true;
-      while (queue.length > 0) {
-        var p = queue.shift();
-        group.push(p);
-        var nbrs = neighbors(p.r, p.c);
-        for (var i = 0; i < nbrs.length; i++) {
-          var key = nbrs[i].r + ',' + nbrs[i].c;
-          if (!visited[key] && gridData[nbrs[i].r][nbrs[i].c] === color) {
-            visited[key] = true;
-            queue.push(nbrs[i]);
-          }
-        }
-      }
-      return group.length >= 3 ? group : [];
-    }
-
-    return {
-      id: 'bubbles', name: 'bubbles',
-      controls: [
-        { icon: ICON.left, label: 'Aim left' },
-        { icon: ICON.shoot, label: 'Shoot' },
-        { icon: ICON.right, label: 'Aim right' },
-        null
-      ],
-      start: function (maxW, maxH) {
-        W = Math.min(maxW, 280);
-        rad = Math.floor(W / (COLS * 2));
-        rad = clamp(rad, 12, 18);
-        W = COLS * rad * 2;
-        H = Math.min(maxH, ROWS * rad * 2 * 0.87 + rad + 60);
-        gridData = [];
-        for (var r = 0; r < ROWS; r++) {
-          gridData[r] = [];
-          var cols = (r % 2 === 1) ? COLS - 1 : COLS;
-          for (var c = 0; c < cols; c++) gridData[r][c] = null;
-        }
-        // Seed top 5 rows
-        for (var r2 = 0; r2 < 5; r2++) {
-          var cols2 = (r2 % 2 === 1) ? COLS - 1 : COLS;
-          for (var c2 = 0; c2 < cols2; c2++) {
-            if (Math.random() < 0.82) gridData[r2][c2] = bCol();
-          }
-        }
-        angle = Math.PI / 2;
-        current = bCol();
-        shooting = false;
-        shot = null;
-        return { w: W, h: H };
-      },
-      tick: function (dt) {
-        if (!shooting || !shot) return [];
-        // Move shot
-        shot.x += Math.cos(shot.a) * SHOT_SPEED;
-        shot.y += Math.sin(shot.a) * SHOT_SPEED;
-        // Wall bounce
-        if (shot.x <= rad || shot.x >= W - rad) {
-          shot.a = Math.PI - shot.a;
-          shot.x = clamp(shot.x, rad, W - rad);
-        }
-        // Check collision with grid bubbles
-        var hit = false;
-        for (var r = 0; r < ROWS; r++) {
-          var cols = (r % 2 === 1) ? COLS - 1 : COLS;
-          for (var c = 0; c < cols; c++) {
-            if (!gridData[r][c]) continue;
-            var cc = cellCenter(r, c);
-            var dist = Math.sqrt((shot.x - cc.x) * (shot.x - cc.x) + (shot.y - cc.y) * (shot.y - cc.y));
-            if (dist < rad * 1.8) { hit = true; break; }
-          }
-          if (hit) break;
-        }
-        // Check ceiling
-        if (shot.y <= rad) hit = true;
-        if (hit) {
-          // Snap to nearest empty cell
-          var cell = nearestCell(shot.x, shot.y);
-          shooting = false;
-          if (cell && cell.r >= 0) {
-            gridData[cell.r][cell.c] = shot.color;
-            // Check match
-            var match = findMatch(cell.r, cell.c);
-            if (match.length > 0) {
-              var avgY = 0;
-              for (var i = 0; i < match.length; i++) {
-                avgY += cellCenter(match[i].r, match[i].c).y;
-                gridData[match[i].r][match[i].c] = null;
-              }
-              current = bCol();
-              return [{ text: nw(), y: avgY / match.length }];
-            }
-          }
-          current = bCol();
-          shot = null;
-        }
-        // Off screen
-        if (shot && shot.y < -50) { shooting = false; shot = null; current = bCol(); }
-        return [];
-      },
-      draw: function (ctx, w, h) {
-        ctx.fillStyle = '#141820'; ctx.fillRect(0, 0, w, h);
-        // Grid bubbles
-        for (var r = 0; r < ROWS; r++) {
-          var cols = (r % 2 === 1) ? COLS - 1 : COLS;
-          for (var c = 0; c < cols; c++) {
-            if (!gridData[r][c]) continue;
-            var cc = cellCenter(r, c);
-            ctx.fillStyle = gridData[r][c];
-            ctx.beginPath();
-            ctx.arc(cc.x, cc.y, rad - 1, 0, Math.PI * 2);
-            ctx.fill();
-            // Highlight
-            ctx.fillStyle = 'rgba(255,255,255,0.12)';
-            ctx.beginPath();
-            ctx.arc(cc.x - rad * 0.2, cc.y - rad * 0.2, rad * 0.3, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-        // Aim line
-        var sx = w / 2, sy = h - 30;
-        ctx.strokeStyle = 'rgba(196,163,90,0.3)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + Math.cos(angle) * -80, sy + Math.sin(angle) * -80);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        // Current bubble (at shooter position)
-        if (!shooting) {
-          ctx.fillStyle = current;
-          ctx.beginPath();
-          ctx.arc(sx, sy, rad - 1, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        // Shot in flight
-        if (shooting && shot) {
-          ctx.fillStyle = shot.color;
-          ctx.beginPath();
-          ctx.arc(shot.x, shot.y, rad - 1, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      },
-      onControl: function (i) {
-        if (i === 0) angle = clamp(angle + 0.12, Math.PI * 0.15, Math.PI * 0.85);
-        else if (i === 2) angle = clamp(angle - 0.12, Math.PI * 0.15, Math.PI * 0.85);
-        else if (i === 1 && !shooting) {
-          shooting = true;
-          shot = {
-            x: W / 2, y: H - 30,
-            a: -angle + Math.PI, // convert to movement angle (up)
-            color: current
-          };
-        }
         return [];
       }
     };
@@ -784,6 +572,6 @@
   })();
 
   // ─── Export ────────────────────────────────────────────────
-  window.MHI_GAMES = [tetris, snake, breaker, bubbles, garden];
+  window.MHI_GAMES = [tetris, snake, breaker, garden];
 
 })();
