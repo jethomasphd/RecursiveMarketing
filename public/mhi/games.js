@@ -279,7 +279,7 @@
   var breaker = (function () {
     var W, H, paddle, ball, bricks, brickW, brickH;
     var PADDLE_W = 80, PADDLE_H = 10, BALL_R = 5;
-    var BALL_SPEED = 2.5;
+    var BALL_SPEED = 1.6;
     var BRICK_ROWS = 5, BRICK_COLS = 8;
 
     function resetBall() {

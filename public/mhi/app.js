@@ -193,13 +193,18 @@
     // Show a brief breathing interlude before starting next game
     showBreathInterlude(function () {
       restartCurrentGame();
-    });
+    }, true);
   }
 
-  function showBreathInterlude(callback) {
+  function showBreathInterlude(callback, resumeGame) {
     // Pause current game and fade it out
     gameRunning = false;
     if (gameAnimFrame) cancelAnimationFrame(gameAnimFrame);
+
+    // Hide overlays so they don't bleed through
+    $('gameOverlay').classList.remove('vis');
+    $('freeplayBar').classList.remove('vis');
+    gamePaused = false;
 
     var gameEl = $('stageGame');
     gameEl.style.transition = 'opacity 0.5s ease';
@@ -244,10 +249,8 @@
           guide.classList.remove('expanding', 'contracting');
           text.classList.remove('vis');
 
-          if (callback) {
-            gameEl.classList.add('active');
-            callback();
-          }
+          if (resumeGame) gameEl.classList.add('active');
+          if (callback) callback();
         }, 600);
       }, 9000);
     }, 500);
