@@ -125,14 +125,16 @@ html,body{
 }
 .begin{
   font-family:var(--serif);font-size:16px;font-weight:400;
-  font-style:italic;color:var(--gold);background:none;
-  border:none;cursor:pointer;letter-spacing:0.5px;
-  padding:12px 0;opacity:0;transform:translateY(10px);
-  transition:opacity 1s ease, transform 1s ease, color .3s;
-  border-bottom:1px solid rgba(196,163,90,0.3);
+  font-style:italic;color:var(--gold);
+  background:rgba(196,163,90,0.06);
+  border:1px solid rgba(196,163,90,0.3);
+  border-radius:24px;cursor:pointer;letter-spacing:0.5px;
+  padding:13px 32px;opacity:0;transform:translateY(10px);
+  transition:opacity 1s ease, transform 1s ease, background .3s, border-color .3s, color .3s;
 }
 .begin.vis{opacity:1;transform:translateY(0)}
-.begin:hover{color:var(--stone);border-bottom-color:rgba(196,163,90,0.5)}
+.begin:hover{color:var(--stone);background:rgba(196,163,90,0.10);border-color:rgba(196,163,90,0.5)}
+.begin:active{transform:scale(0.96)}
 
 .skip{
   font-family:var(--sans);font-size:10px;font-weight:300;
@@ -143,15 +145,8 @@ html,body{
 .skip.vis{opacity:1}
 .skip:hover{color:var(--dim)}
 
-/* Landing exit animation */
-.landing.exiting .enso{transform:translateY(-30px) scale(1.05);opacity:0;transition:all .8s ease .0s}
-.landing.exiting .r1{transform:translateY(-40px);opacity:0;transition:all .7s ease .05s}
-.landing.exiting .r2{transform:translateY(-45px);opacity:0;transition:all .7s ease .08s}
-.landing.exiting .r3{transform:translateY(-50px);opacity:0;transition:all .7s ease .11s}
-.landing.exiting .r4{transform:translateY(-35px);opacity:0;transition:all .6s ease .06s}
-.landing.exiting .r5{transform:translateY(-40px);opacity:0;transition:all .7s ease .1s}
-.landing.exiting .begin{transform:translateY(-20px);opacity:0;transition:all .5s ease 0s}
-.landing.exiting .skip{opacity:0;transition:opacity .3s ease 0s}
+/* Landing exit — soft fade */
+.landing.exiting{opacity:0;transition:opacity 1s ease}
 
 /* ═══════════════════════════════════════════
    GAME — meditative Tetris
@@ -164,11 +159,6 @@ html,body{
   transition:opacity .8s ease .3s;
 }
 .game.active{opacity:1;pointer-events:auto}
-
-/* Ember overlay */
-.ember-canvas{
-  position:absolute;inset:0;z-index:10;pointer-events:none;
-}
 
 /* Breath circle */
 .breath-wrap{
@@ -716,8 +706,6 @@ html,body{
 
     <!-- Landing -->
     <div class="landing" id="stageLanding">
-      <canvas class="ember-canvas" id="emberCanvas"></canvas>
-
       <svg class="enso" id="enso" viewBox="0 0 100 100" aria-hidden="true">
         <path class="enso-path" d="M 58 8 C 78 6, 96 24, 96 48 C 96 74, 76 96, 50 96 C 24 96, 4 74, 4 48 C 4 24, 22 8, 44 6" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round"/>
       </svg>
@@ -731,8 +719,8 @@ html,body{
 
       <p class="r r5" id="r5">A moment of quiet.</p>
 
-      <button class="begin" id="beginBtn">take a moment</button>
-      <button class="skip" id="skipBtn">skip to search</button>
+      <button class="begin" id="beginBtn">Take a moment</button>
+      <button class="skip" id="skipBtn">go straight to search</button>
 
     </div>
 
@@ -750,7 +738,7 @@ html,body{
           <p class="ov-line">How do you feel?</p>
           <div class="ov-actions">
             <button class="ov-btn" id="keepPlayingBtn">keep playing</button>
-            <button class="ov-btn primary" id="readyBtn">I'm ready</button>
+            <button class="ov-btn primary" id="readyBtn">ready to search</button>
           </div>
         </div>
       </div>
@@ -778,7 +766,7 @@ html,body{
 
       <!-- Picks -->
       <div class="picks" id="picksView">
-        <p class="picks-handhold" style="font-size:11px;font-weight:300;color:var(--dim);letter-spacing:0.3px;margin-bottom:16px;line-height:1.7;max-width:300px;">This search is different. Real AI. Real federal jobs database. No fake listings, no spam.</p>
+        <p class="picks-handhold" style="font-size:12px;font-weight:300;color:var(--ink);letter-spacing:0.2px;margin-bottom:20px;line-height:1.7;max-width:300px;font-family:var(--serif);font-style:italic;">Now let's find something worth applying to.</p>
         <p class="picks-prompt">What shall we call you?</p>
         <input class="name-input" id="nameInput" type="text"
           placeholder="your name" maxlength="20"
@@ -853,7 +841,7 @@ html,body{
 
       <p class="lead">
         You came here to search for a job. We asked you to play a game first.
-        That was intentional. Here is why.
+        That wasn't a gimmick. Here is why.
       </p>
 
       <div class="sep"></div>
