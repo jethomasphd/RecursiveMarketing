@@ -197,40 +197,6 @@ html,body{
 }
 .game.active{opacity:1;pointer-events:auto}
 
-/* Breath circle — hand-drawn SVG */
-.breath-wrap{
-  position:relative;width:64px;height:64px;margin-bottom:10px;
-}
-.breath-circle{
-  width:100%;height:100%;
-  color:var(--sage);
-  opacity:0.5;
-  transition:transform 4s cubic-bezier(0.4,0,0.2,1), opacity 4s ease;
-  transform:scale(0.6);
-}
-.breath-circle.inhale{
-  transform:scale(1);opacity:0.85;
-  color:var(--sage);
-}
-.breath-circle.exhale{
-  transform:scale(0.6);opacity:0.4;
-  color:var(--ink);
-}
-.breath-label{
-  position:absolute;inset:0;
-  display:flex;align-items:center;justify-content:center;
-  font-family:var(--serif);font-size:10px;font-weight:300;
-  font-style:italic;color:var(--ink);letter-spacing:0.5px;
-  pointer-events:none;
-}
-
-.breath-hint{
-  font-family:var(--serif);font-size:15px;font-weight:300;
-  font-style:italic;color:var(--ink);letter-spacing:0.5px;
-  height:22px;margin-bottom:12px;
-  transition:opacity .6s ease;
-}
-
 .game-board{position:relative;margin-bottom:10px}
 .game-canvas{
   display:block;border-radius:8px;
@@ -805,13 +771,6 @@ html,body{
 
     <!-- Game -->
     <div class="game" id="stageGame">
-      <div class="breath-wrap" id="breathWrap">
-        <svg class="breath-circle" id="breathCircle" viewBox="0 0 100 100" fill="none">
-          <path d="M 48 6 C 78 8, 94 28, 93 52 C 92 78, 70 96, 46 94 C 22 92, 4 72, 6 46 C 8 22, 26 6, 48 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-        <div class="breath-label" id="breathHint">in</div>
-      </div>
-
       <div class="game-board" id="gameBoard">
         <canvas class="game-canvas" id="gameCanvas"></canvas>
         <div class="game-word" id="gameWord"></div>

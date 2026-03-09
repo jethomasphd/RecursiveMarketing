@@ -190,8 +190,67 @@
   function switchToNextGame() {
     var next = (currentGameIndex + 1) % allGames.length;
     switchToGame(next);
-    // Restart the game with the new game
-    restartCurrentGame();
+    // Show a brief breathing interlude before starting next game
+    showBreathInterlude(function () {
+      restartCurrentGame();
+    });
+  }
+
+  function showBreathInterlude(callback) {
+    // Pause current game and fade it out
+    gameRunning = false;
+    if (gameAnimFrame) cancelAnimationFrame(gameAnimFrame);
+
+    var gameEl = $('stageGame');
+    gameEl.style.transition = 'opacity 0.5s ease';
+    gameEl.style.opacity = '0';
+
+    setTimeout(function () {
+      gameEl.classList.remove('active');
+      gameEl.style.opacity = '';
+      gameEl.style.transition = '';
+
+      // Show breath stage
+      var el = $('stageBreath');
+      var guide = $('breathGuide');
+      var text = $('breathText');
+      guide.classList.remove('expanding', 'contracting');
+      text.classList.remove('vis');
+      text.textContent = '';
+      el.classList.add('active');
+
+      // Inhale
+      setTimeout(function () {
+        text.textContent = 'breathe in';
+        text.classList.add('vis');
+        guide.classList.add('expanding');
+      }, 300);
+
+      // Exhale
+      setTimeout(function () {
+        text.textContent = 'and out';
+        guide.classList.remove('expanding');
+        guide.classList.add('contracting');
+      }, 4500);
+
+      // Fade out and callback
+      setTimeout(function () {
+        el.style.transition = 'opacity 0.6s ease';
+        el.style.opacity = '0';
+        setTimeout(function () {
+          el.classList.remove('active');
+          el.style.opacity = '';
+          el.style.transition = '';
+          guide.classList.remove('expanding', 'contracting');
+          text.classList.remove('vis');
+
+          if (callback) {
+            gameEl.classList.add('active');
+            callback();
+          }
+        }, 600);
+      }, 9000);
+    }, 500);
   }
 
   function updateControls() {
@@ -327,10 +386,6 @@
     $('freeplayBar').classList.remove('vis');
     $('timerTrack').style.display = '';
 
-    // Initialize breath circle
-    var circle = $('breathCircle');
-    if (circle) { circle.classList.remove('inhale', 'exhale'); circle.classList.add('inhale'); }
-
     gameLoop(Date.now());
   }
 
@@ -359,9 +414,6 @@
     $('freeplayBar').classList.remove('vis');
     $('timerTrack').style.display = '';
 
-    var circle = $('breathCircle');
-    if (circle) { circle.classList.remove('inhale', 'exhale'); circle.classList.add('inhale'); }
-
     gameLoop(Date.now());
   }
 
@@ -385,20 +437,8 @@
         }
       }
 
-      // Breathing — synced to circle
+      // Breathing timer (used for subtle canvas overlay)
       breathTimer += dt;
-      var cycle = BREATH_IN + BREATH_OUT;
-      var pos = breathTimer % cycle;
-      var newPhase = pos < BREATH_IN ? 'in' : 'out';
-      if (newPhase !== breathPhase) {
-        breathPhase = newPhase;
-        $('breathHint').textContent = breathPhase === 'in' ? 'in' : 'out';
-        var circle = $('breathCircle');
-        if (circle) {
-          circle.classList.remove('inhale', 'exhale');
-          circle.classList.add(breathPhase === 'in' ? 'inhale' : 'exhale');
-        }
-      }
 
       // Delegate tick to active game
       if ((!timerExpired || freePlay) && activeGame) {
@@ -445,24 +485,12 @@
 
   function readyToSearch() {
     log('ready to search');
-    gameRunning = false;
-    if (gameAnimFrame) cancelAnimationFrame(gameAnimFrame);
-
-    // Fade game out
-    var game = $('stageGame');
-    game.style.transition = 'opacity 0.8s ease';
-    game.style.opacity = '0';
-
-    setTimeout(function () {
-      game.classList.remove('active');
-      game.style.opacity = '';
-      game.style.transition = '';
-
+    showBreathInterlude(function () {
       $('stageSearch').classList.add('active');
       stage = 'picks';
       detectLocation();
       setTimeout(function () { $('nameInput').focus(); }, 400);
-    }, 800);
+    });
   }
 
   // ─── Floating words ─────────────────────────────────────
