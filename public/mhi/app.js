@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
-// MHI — Mental Health Intervention Search
-// Landing → Breathing Game → Transition → Picks → Chat
-// Evidence-based micro-intervention before job search.
+// MHI — A Moment
+// Cinematic landing → breathing game → job search
+// Every pixel intentional.
 // ═══════════════════════════════════════════════════════════════
 
 (function () {
@@ -9,13 +9,13 @@
 
   var WORKER = window.__WORKER_URL__ || '';
   var TIMEOUT = 30000;
-  var GAME_DURATION = 18000; // 18 seconds
+  var GAME_DURATION = 18000;
 
-  // ─── State ───────────────────────────────────────────────
+  // ─── State ──────────────────────────────────────────────
   var currentTab = 'search';
-  var stage = 'landing'; // landing → game → transition → picks → chat
+  var stage = 'landing';
 
-  // Search state
+  // Search
   var userName = '';
   var selectedInterest = '';
   var selectedLocation = '';
@@ -30,129 +30,97 @@
   var isWaiting = false;
   var topPickJob = null;
 
-  // Game state
+  // Game
   var gameRunning = false;
+  var gamePaused = false;
   var gameCanvas, gameCtx;
   var gameStartTime = 0;
   var gameAnimFrame = null;
-  var breathPhase = 'in'; // 'in' or 'out'
   var breathTimer = 0;
-  var BREATH_IN = 4000;  // 4 seconds inhale
-  var BREATH_OUT = 4000; // 4 seconds exhale
+  var breathPhase = 'in';
+  var BREATH_IN = 4000;
+  var BREATH_OUT = 4000;
+  var timerExpired = false;
+  var freePlay = false;
 
-  // Grid: 10 columns x 16 rows
-  var COLS = 10, ROWS = 16;
-  var CELL = 20; // pixel size per cell
+  // Grid: 8 cols x 14 rows
+  var COLS = 8, ROWS = 14;
+  var CELL = 0;
   var grid = [];
   var currentPiece = null;
   var dropTimer = 0;
-  var DROP_INTERVAL = 800; // ms per drop — synced to breathing
+  var DROP_INTERVAL = 1100;
   var rowsCleared = 0;
+  var floatingWords = [];
   var gameWords = ['breathe', 'pause', "you're here", 'you matter', 'steady', 'ready'];
   var wordIndex = 0;
 
-  // Piece shapes — simple, calming
+  // Piece definitions — muted natural tones
   var PIECES = [
-    { shape: [[1,1],[1,1]], color: '#f5a623' },           // square — warm amber
-    { shape: [[1,1,1]], color: '#3ecfb4' },                // bar-3 — teal
-    { shape: [[1,1,1,1]], color: '#5fa8e8' },              // bar-4 — sky
-    { shape: [[1,1,0],[0,1,1]], color: '#e8758a' },        // S — rose
-    { shape: [[0,1,1],[1,1,0]], color: '#7bc89c' },        // Z — sage
-    { shape: [[1,0],[1,0],[1,1]], color: '#c084fc' },      // L — lavender
-    { shape: [[0,1],[0,1],[1,1]], color: '#fbbf24' },      // J — gold
-    { shape: [[1,1,1],[0,1,0]], color: '#f87171' },        // T — coral
+    { shape: [[1,1],[1,1]], color: '#c4a35a' },
+    { shape: [[1,1,1]], color: '#7a9e8e' },
+    { shape: [[1,1,1,1]], color: '#6a8fa7' },
+    { shape: [[1,1,0],[0,1,1]], color: '#b07a7a' },
+    { shape: [[0,1,1],[1,1,0]], color: '#8a9eae' },
+    { shape: [[1,0],[1,0],[1,1]], color: '#b8856e' },
+    { shape: [[0,1],[0,1],[1,1]], color: '#8e7299' },
+    { shape: [[1,1,1],[0,1,0]], color: '#a69076' },
   ];
 
-  // Touch controls
-  var touchStartX = 0;
-
-  // ─── Helpers ──────────────────────────────────────────────
+  // ─── Helpers ────────────────────────────────────────────
   function $(id) { return document.getElementById(id); }
+  function each(sel, fn) { var els = document.querySelectorAll(sel); for (var i = 0; i < els.length; i++) fn(els[i]); }
+  function log() { var a = ['[mhi]']; for (var i = 0; i < arguments.length; i++) a.push(arguments[i]); console.log.apply(console, a); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function scrollChat() { var a = $('chatArea'); if (a) a.scrollTop = a.scrollHeight; }
 
-  function each(sel, fn) {
-    var els = document.querySelectorAll(sel);
-    for (var i = 0; i < els.length; i++) fn(els[i]);
-  }
-
-  function log() {
-    var args = ['[mhi]'];
-    for (var i = 0; i < arguments.length; i++) args.push(arguments[i]);
-    console.log.apply(console, args);
-  }
-
-  function esc(s) {
-    var d = document.createElement('div');
-    d.textContent = s || '';
-    return d.innerHTML;
-  }
-
-  function scrollChat() {
-    var a = $('chatArea');
-    if (a) a.scrollTop = a.scrollHeight;
-  }
-
-  // ─── Tab switching ─────────────────────────────────────────
+  // ─── Tabs ───────────────────────────────────────────────
   function switchTab(tab) {
     currentTab = tab;
-    each('.tab', function (t) {
-      t.classList.toggle('active', t.getAttribute('data-tab') === tab);
-    });
+    each('.tab', function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === tab); });
     $('screenSearch').classList.toggle('hidden', tab !== 'search');
     $('screenAbout').classList.toggle('hidden', tab !== 'about');
-    if (tab === 'about') {
-      $('screenAbout').scrollTop = 0;
-    }
-  }
-
-  // ─── Stage transitions ──────────────────────────────────────
-  function showStage(name) {
-    stage = name;
-    $('stageLanding').classList.toggle('hidden', name !== 'landing');
-    $('stageGame').classList.toggle('hidden', name !== 'game');
-    $('stageTransition').classList.toggle('hidden', name !== 'transition');
-    $('stageSearch').classList.toggle('hidden', name !== 'picks' && name !== 'chat');
-
-    if (name === 'landing') {
-      $('stageLanding').style.opacity = '1';
-      $('stageLanding').style.display = '';
-    }
-    if (name === 'game') {
-      $('stageGame').style.opacity = '1';
-    }
-    if (name === 'picks' || name === 'chat') {
-      $('stageSearch').style.opacity = '1';
-    }
+    if (tab === 'about') $('screenAbout').scrollTop = 0;
   }
 
   // ═══════════════════════════════════════════════════════════
   // INIT
   // ═══════════════════════════════════════════════════════════
   function init() {
-    log('init, worker:', WORKER || '(none)');
+    log('init');
 
     // Tabs
-    each('.tab', function (t) {
-      t.addEventListener('click', function () { switchTab(t.getAttribute('data-tab')); });
-    });
+    each('.tab', function (t) { t.addEventListener('click', function () { switchTab(t.getAttribute('data-tab')); }); });
 
     // Landing
-    $('beginBtn').addEventListener('click', startGame);
-    $('skipToSearch').addEventListener('click', skipToSearch);
+    $('beginBtn').addEventListener('click', beginTransition);
+    $('skipBtn').addEventListener('click', skipToSearch);
 
-    // Transition
-    $('readyBtn').addEventListener('click', function () { showStage('picks'); detectLocation(); });
+    // Game controls
+    $('ctrlLeft').addEventListener('click', function () { movePiece(-1); });
+    $('ctrlRight').addEventListener('click', function () { movePiece(1); });
+    $('ctrlRotate').addEventListener('click', function () { rotatePiece(); });
+
+    // Prevent double-tap zoom on controls
+    each('.ctrl', function (btn) {
+      btn.addEventListener('touchstart', function (e) { e.preventDefault(); }, { passive: false });
+      btn.addEventListener('touchend', function (e) {
+        e.preventDefault();
+        btn.click();
+      }, { passive: false });
+    });
+
+    // Game overlay
+    $('keepPlayingBtn').addEventListener('click', keepPlaying);
+    $('readyBtn').addEventListener('click', readyToSearch);
 
     // Picks
     var ni = $('nameInput');
     ni.addEventListener('input', updateGoButton);
     ni.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitPicks(); });
 
-    each('#interestChips .chip', function (c) {
-      c.addEventListener('click', function () { selectChip('interest', c); });
-    });
-    each('#locationChips .chip', function (c) {
-      c.addEventListener('click', function () { selectChip('location', c); });
-    });
+    each('#interestChips .chip', function (c) { c.addEventListener('click', function () { selectChip('interest', c); }); });
+    each('#locationChips .chip', function (c) { c.addEventListener('click', function () { selectChip('location', c); }); });
 
     var li = $('locationInput');
     if (li) {
@@ -167,7 +135,7 @@
     }
 
     $('goBtn').addEventListener('click', submitPicks);
-    $('skipBtn').addEventListener('click', function () { submitPicks(true); });
+    $('skipPicks').addEventListener('click', function () { submitPicks(true); });
 
     // Chat
     $('chatInput').addEventListener('keydown', function (e) {
@@ -176,76 +144,117 @@
     $('chatSend').addEventListener('click', sendChat);
     $('ctaBtn').addEventListener('click', function (e) { e.preventDefault(); goToApply(); });
 
-    // Game canvas setup
+    // Tooltip system
+    initTooltips();
+
+    // Canvas setup
     gameCanvas = $('gameCanvas');
+    gameCtx = gameCanvas.getContext('2d');
+    sizeCanvas();
+    window.addEventListener('resize', sizeCanvas);
+
+    // Start cinematic reveal
+    revealLanding();
+  }
+
+  function sizeCanvas() {
+    var maxW = Math.min(window.innerWidth - 48, 280);
+    var maxH = window.innerHeight - 220;
+    CELL = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
+    CELL = Math.max(CELL, 18);
+    CELL = Math.min(CELL, 32);
     gameCanvas.width = COLS * CELL;
     gameCanvas.height = ROWS * CELL;
-    gameCtx = gameCanvas.getContext('2d');
-
-    // Keyboard for game
-    document.addEventListener('keydown', handleGameKey);
-
-    // Touch controls for game
-    gameCanvas.addEventListener('touchstart', function (e) {
-      touchStartX = e.touches[0].clientX;
-    }, { passive: true });
-    gameCanvas.addEventListener('touchend', function (e) {
-      if (!gameRunning || !currentPiece) return;
-      var endX = e.changedTouches[0].clientX;
-      var diff = endX - touchStartX;
-      if (Math.abs(diff) > 30) {
-        movePiece(diff > 0 ? 1 : -1);
-      } else {
-        // Tap = drop faster
-        dropPiece();
-      }
-    }, { passive: true });
-
-    log('ready');
   }
 
   // ═══════════════════════════════════════════════════════════
-  // GAME ENGINE — Breathing Tetris
+  // LANDING — cinematic slow reveal
+  // ═══════════════════════════════════════════════════════════
+  function revealLanding() {
+    var timings = [
+      { el: 'enso', cls: 'draw', delay: 800 },
+      { el: 'r1', cls: 'vis', delay: 2800 },
+      { el: 'r2', cls: 'vis', delay: 4800 },
+      { el: 'r3', cls: 'vis', delay: 6200 },
+      { el: 'r4', cls: 'vis', delay: 8000 },
+      { el: 'r5', cls: 'vis', delay: 9800 },
+      { el: 'beginBtn', cls: 'vis', delay: 11500 },
+      { el: 'skipBtn', cls: 'vis', delay: 12500 },
+    ];
+    for (var i = 0; i < timings.length; i++) {
+      (function (t) {
+        setTimeout(function () {
+          var el = $(t.el);
+          if (el) el.classList.add(t.cls);
+        }, t.delay);
+      })(timings[i]);
+    }
+  }
+
+  // ─── Whimsical exit → game ──────────────────────────────
+  function beginTransition() {
+    log('begin transition');
+    var landing = $('stageLanding');
+    landing.classList.add('exiting');
+
+    setTimeout(function () {
+      landing.style.display = 'none';
+      startGame();
+    }, 850);
+  }
+
+  function skipToSearch() {
+    log('skip to search');
+    $('stageLanding').style.display = 'none';
+    $('stageSearch').classList.add('active');
+    stage = 'picks';
+    detectLocation();
+    setTimeout(function () { $('nameInput').focus(); }, 400);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // GAME ENGINE
   // ═══════════════════════════════════════════════════════════
 
   function startGame() {
-    log('starting breathing game');
-    showStage('game');
-    setTimeout(function () {
-      $('gameMessage').classList.add('visible');
-    }, 300);
+    log('starting game');
+    stage = 'game';
+    $('stageGame').classList.add('active');
 
-    // Init grid
     grid = [];
     for (var r = 0; r < ROWS; r++) {
       grid[r] = [];
-      for (var c = 0; c < COLS; c++) {
-        grid[r][c] = null;
-      }
+      for (var c = 0; c < COLS; c++) grid[r][c] = null;
     }
 
     rowsCleared = 0;
     wordIndex = 0;
-    breathPhase = 'in';
     breathTimer = 0;
+    breathPhase = 'in';
     dropTimer = 0;
+    floatingWords = [];
+    timerExpired = false;
+    freePlay = false;
+    gamePaused = false;
     gameRunning = true;
     gameStartTime = Date.now();
     currentPiece = spawnPiece();
+
+    $('gameOverlay').classList.remove('vis');
+    $('timerTrack').style.display = '';
 
     gameLoop(Date.now());
   }
 
   function spawnPiece() {
     var def = PIECES[Math.floor(Math.random() * PIECES.length)];
-    var shape = def.shape;
+    // Deep copy the shape so rotation doesn't mutate the template
+    var shape = [];
+    for (var r = 0; r < def.shape.length; r++) {
+      shape[r] = def.shape[r].slice();
+    }
     var w = shape[0].length;
-    return {
-      shape: shape,
-      color: def.color,
-      x: Math.floor((COLS - w) / 2),
-      y: 0,
-    };
+    return { shape: shape, color: def.color, x: Math.floor((COLS - w) / 2), y: 0 };
   }
 
   function gameLoop(lastTime) {
@@ -253,59 +262,96 @@
 
     var now = Date.now();
     var dt = now - lastTime;
-    var elapsed = now - gameStartTime;
 
-    // Update timer bar
-    var progress = Math.min(elapsed / GAME_DURATION, 1);
-    $('gameTimerFill').style.width = (progress * 100) + '%';
+    if (!gamePaused) {
+      var elapsed = now - gameStartTime;
 
-    // Update breathing
-    breathTimer += dt;
-    var breathCycle = BREATH_IN + BREATH_OUT;
-    var cyclePos = breathTimer % breathCycle;
-    if (cyclePos < BREATH_IN) {
-      if (breathPhase !== 'in') {
-        breathPhase = 'in';
-        $('breathGuide').innerHTML = '<em>breathe in</em>';
+      // Timer
+      if (!freePlay) {
+        var progress = Math.min(elapsed / GAME_DURATION, 1);
+        $('timerFill').style.width = (progress * 100) + '%';
+
+        if (elapsed >= GAME_DURATION && !timerExpired) {
+          timerExpired = true;
+          showGameComplete();
+        }
       }
-    } else {
-      if (breathPhase !== 'out') {
-        breathPhase = 'out';
-        $('breathGuide').innerHTML = '<em>breathe out</em>';
-      }
-    }
 
-    // Drop piece
-    dropTimer += dt;
-    if (dropTimer >= DROP_INTERVAL) {
-      dropTimer = 0;
-      if (currentPiece) {
-        if (!tryMove(currentPiece, 0, 1)) {
-          // Lock piece
-          lockPiece(currentPiece);
-          checkRows();
-          currentPiece = spawnPiece();
-          // If new piece can't be placed, clear some space
-          if (!canPlace(currentPiece, currentPiece.x, currentPiece.y)) {
-            clearTopRows();
-            currentPiece.y = 0;
+      // Breathing
+      breathTimer += dt;
+      var cycle = BREATH_IN + BREATH_OUT;
+      var pos = breathTimer % cycle;
+      var newPhase = pos < BREATH_IN ? 'in' : 'out';
+      if (newPhase !== breathPhase) {
+        breathPhase = newPhase;
+        $('breathHint').textContent = breathPhase === 'in' ? 'breathe in' : 'breathe out';
+      }
+
+      // Drop
+      if (!timerExpired || freePlay) {
+        dropTimer += dt;
+        if (dropTimer >= DROP_INTERVAL) {
+          dropTimer = 0;
+          if (currentPiece) {
+            if (!tryMove(currentPiece, 0, 1)) {
+              lockPiece(currentPiece);
+              checkRows();
+              currentPiece = spawnPiece();
+              if (!canPlace(currentPiece, currentPiece.x, currentPiece.y)) {
+                clearTopRows();
+                currentPiece.y = 0;
+              }
+            }
           }
         }
       }
+
+      // Update floating words
+      updateFloatingWords(now);
     }
 
-    // Draw
     drawGame();
-
-    // End check
-    if (elapsed >= GAME_DURATION) {
-      endGame();
-      return;
-    }
 
     gameAnimFrame = requestAnimationFrame(function () { gameLoop(now); });
   }
 
+  function showGameComplete() {
+    gamePaused = true;
+    $('gameOverlay').classList.add('vis');
+  }
+
+  function keepPlaying() {
+    log('keep playing');
+    freePlay = true;
+    gamePaused = false;
+    timerExpired = false;
+    $('gameOverlay').classList.remove('vis');
+    $('timerTrack').style.display = 'none';
+  }
+
+  function readyToSearch() {
+    log('ready to search');
+    gameRunning = false;
+    if (gameAnimFrame) cancelAnimationFrame(gameAnimFrame);
+
+    // Fade game out
+    var game = $('stageGame');
+    game.style.transition = 'opacity 0.8s ease';
+    game.style.opacity = '0';
+
+    setTimeout(function () {
+      game.classList.remove('active');
+      game.style.opacity = '';
+      game.style.transition = '';
+
+      $('stageSearch').classList.add('active');
+      stage = 'picks';
+      detectLocation();
+      setTimeout(function () { $('nameInput').focus(); }, 400);
+    }, 800);
+  }
+
+  // ─── Piece movement ─────────────────────────────────────
   function tryMove(piece, dx, dy) {
     var nx = piece.x + dx;
     var ny = piece.y + dy;
@@ -318,12 +364,24 @@
   }
 
   function canPlace(piece, px, py) {
-    var shape = piece.shape;
+    var s = piece.shape;
+    for (var r = 0; r < s.length; r++) {
+      for (var c = 0; c < s[r].length; c++) {
+        if (s[r][c]) {
+          var gx = px + c, gy = py + r;
+          if (gx < 0 || gx >= COLS || gy >= ROWS) return false;
+          if (gy >= 0 && grid[gy][gx]) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function canPlaceShape(shape, px, py) {
     for (var r = 0; r < shape.length; r++) {
       for (var c = 0; c < shape[r].length; c++) {
         if (shape[r][c]) {
-          var gx = px + c;
-          var gy = py + r;
+          var gx = px + c, gy = py + r;
           if (gx < 0 || gx >= COLS || gy >= ROWS) return false;
           if (gy >= 0 && grid[gy][gx]) return false;
         }
@@ -333,18 +391,48 @@
   }
 
   function lockPiece(piece) {
-    var shape = piece.shape;
-    for (var r = 0; r < shape.length; r++) {
-      for (var c = 0; c < shape[r].length; c++) {
-        if (shape[r][c]) {
-          var gy = piece.y + r;
-          var gx = piece.x + c;
+    var s = piece.shape;
+    for (var r = 0; r < s.length; r++) {
+      for (var c = 0; c < s[r].length; c++) {
+        if (s[r][c]) {
+          var gy = piece.y + r, gx = piece.x + c;
           if (gy >= 0 && gy < ROWS && gx >= 0 && gx < COLS) {
             grid[gy][gx] = piece.color;
           }
         }
       }
     }
+  }
+
+  function movePiece(dx) {
+    if (!gameRunning || !currentPiece || gamePaused) return;
+    tryMove(currentPiece, dx, 0);
+  }
+
+  function rotatePiece() {
+    if (!gameRunning || !currentPiece || gamePaused) return;
+
+    var old = currentPiece.shape;
+    var rows = old.length;
+    var cols = old[0].length;
+    var rotated = [];
+    for (var c = 0; c < cols; c++) {
+      rotated[c] = [];
+      for (var r = rows - 1; r >= 0; r--) {
+        rotated[c].push(old[r][c]);
+      }
+    }
+
+    // Try placement: original position, then nudge left/right
+    var offsets = [0, -1, 1, -2, 2];
+    for (var i = 0; i < offsets.length; i++) {
+      if (canPlaceShape(rotated, currentPiece.x + offsets[i], currentPiece.y)) {
+        currentPiece.shape = rotated;
+        currentPiece.x += offsets[i];
+        return;
+      }
+    }
+    // Rotation doesn't fit — do nothing (no punishment)
   }
 
   function checkRows() {
@@ -354,153 +442,136 @@
         if (!grid[r][c]) { full = false; break; }
       }
       if (full) {
-        // Remove row
+        // Add floating word at this row
+        addFloatingWord(r);
+
         grid.splice(r, 1);
         var newRow = [];
         for (var c2 = 0; c2 < COLS; c2++) newRow.push(null);
         grid.unshift(newRow);
         rowsCleared++;
-        r++; // Re-check this row index
-
-        // Show a word
-        showGameWord();
+        r++;
       }
     }
   }
 
   function clearTopRows() {
-    // Gently clear the top 4 rows to make space — the game never punishes
     for (var r = 0; r < 4; r++) {
-      for (var c = 0; c < COLS; c++) {
-        grid[r][c] = null;
+      for (var c = 0; c < COLS; c++) grid[r][c] = null;
+    }
+  }
+
+  // ─── Floating words ─────────────────────────────────────
+  function addFloatingWord(row) {
+    var word = gameWords[wordIndex % gameWords.length];
+    wordIndex++;
+    floatingWords.push({
+      text: word,
+      y: row * CELL,
+      alpha: 1.0,
+      born: Date.now(),
+    });
+  }
+
+  function updateFloatingWords(now) {
+    for (var i = floatingWords.length - 1; i >= 0; i--) {
+      var w = floatingWords[i];
+      var age = now - w.born;
+      if (age > 2000) {
+        floatingWords.splice(i, 1);
+      } else {
+        w.alpha = 1 - (age / 2000);
+        w.y -= 0.3;
       }
     }
   }
 
-  function showGameWord() {
-    var word = gameWords[wordIndex % gameWords.length];
-    wordIndex++;
-    var el = $('gameWord');
-    el.textContent = word;
-    el.classList.add('visible');
-    setTimeout(function () { el.classList.remove('visible'); }, 2000);
-  }
-
-  function movePiece(dx) {
-    if (!gameRunning || !currentPiece) return;
-    tryMove(currentPiece, dx, 0);
-  }
-
-  function dropPiece() {
-    if (!gameRunning || !currentPiece) return;
-    // Soft drop: move down one
-    tryMove(currentPiece, 0, 1);
-  }
-
-  function handleGameKey(e) {
-    if (!gameRunning || !currentPiece) return;
-    if (e.key === 'ArrowLeft') { e.preventDefault(); movePiece(-1); }
-    else if (e.key === 'ArrowRight') { e.preventDefault(); movePiece(1); }
-    else if (e.key === 'ArrowDown') { e.preventDefault(); dropPiece(); }
-  }
-
+  // ─── Rendering ──────────────────────────────────────────
   function drawGame() {
     var ctx = gameCtx;
     var w = gameCanvas.width;
     var h = gameCanvas.height;
 
-    // Clear
-    ctx.fillStyle = '#111827';
+    // Background
+    ctx.fillStyle = '#141820';
     ctx.fillRect(0, 0, w, h);
 
-    // Draw grid lines (very subtle)
-    ctx.strokeStyle = 'rgba(42,52,80,0.3)';
+    // Subtle grid
+    ctx.strokeStyle = 'rgba(37,42,56,0.25)';
     ctx.lineWidth = 0.5;
     for (var c = 0; c <= COLS; c++) {
-      ctx.beginPath();
-      ctx.moveTo(c * CELL, 0);
-      ctx.lineTo(c * CELL, h);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, h); ctx.stroke();
     }
     for (var r = 0; r <= ROWS; r++) {
-      ctx.beginPath();
-      ctx.moveTo(0, r * CELL);
-      ctx.lineTo(w, r * CELL);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(w, r * CELL); ctx.stroke();
     }
 
-    // Draw placed blocks
+    // Placed blocks
     for (var r2 = 0; r2 < ROWS; r2++) {
       for (var c2 = 0; c2 < COLS; c2++) {
-        if (grid[r2][c2]) {
-          drawBlock(ctx, c2, r2, grid[r2][c2]);
-        }
+        if (grid[r2][c2]) drawBlock(ctx, c2, r2, grid[r2][c2], 1);
       }
     }
 
-    // Draw current piece
-    if (currentPiece) {
-      var shape = currentPiece.shape;
-      for (var pr = 0; pr < shape.length; pr++) {
-        for (var pc = 0; pc < shape[pr].length; pc++) {
-          if (shape[pr][pc]) {
-            drawBlock(ctx, currentPiece.x + pc, currentPiece.y + pr, currentPiece.color);
+    // Current piece
+    if (currentPiece && !gamePaused) {
+      var s = currentPiece.shape;
+      for (var pr = 0; pr < s.length; pr++) {
+        for (var pc = 0; pc < s[pr].length; pc++) {
+          if (s[pr][pc]) {
+            drawBlock(ctx, currentPiece.x + pc, currentPiece.y + pr, currentPiece.color, 1);
           }
         }
       }
     }
 
-    // Breathing overlay — subtle pulsing glow
-    var cyclePos = breathTimer % (BREATH_IN + BREATH_OUT);
-    var breathProgress;
-    if (cyclePos < BREATH_IN) {
-      breathProgress = cyclePos / BREATH_IN;
-    } else {
-      breathProgress = 1 - (cyclePos - BREATH_IN) / BREATH_OUT;
-    }
-    var glowAlpha = 0.02 + breathProgress * 0.04;
-    ctx.fillStyle = 'rgba(62,207,180,' + glowAlpha + ')';
+    // Breathing overlay
+    var cycle = breathTimer % (BREATH_IN + BREATH_OUT);
+    var bp = cycle < BREATH_IN ? cycle / BREATH_IN : 1 - (cycle - BREATH_IN) / BREATH_OUT;
+    var ga = 0.01 + bp * 0.03;
+    ctx.fillStyle = 'rgba(122,158,142,' + ga + ')';
     ctx.fillRect(0, 0, w, h);
+
+    // Floating words
+    for (var fi = 0; fi < floatingWords.length; fi++) {
+      var fw = floatingWords[fi];
+      ctx.save();
+      ctx.globalAlpha = fw.alpha * 0.8;
+      ctx.font = '300 ' + Math.floor(CELL * 0.65) + 'px "Cormorant Garamond", Georgia, serif';
+      ctx.fillStyle = '#c4a35a';
+      ctx.textAlign = 'center';
+      ctx.fillText(fw.text, w / 2, fw.y);
+      ctx.restore();
+    }
   }
 
-  function drawBlock(ctx, x, y, color) {
-    var px = x * CELL;
-    var py = y * CELL;
-    var s = CELL - 1;
+  function drawBlock(ctx, x, y, color, alpha) {
+    var px = x * CELL + 1;
+    var py = y * CELL + 1;
+    var s = CELL - 2;
 
-    // Block body
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Body
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.roundRect(px + 0.5, py + 0.5, s, s, 3);
+    if (ctx.roundRect) {
+      ctx.roundRect(px, py, s, s, 3);
+    } else {
+      ctx.rect(px, py, s, s);
+    }
     ctx.fill();
 
-    // Subtle inner highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.fillRect(px + 2, py + 2, s - 4, 2);
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(px + 2, py + 2, s - 4, 1);
 
-    // Subtle shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    ctx.fillRect(px + 2, py + s - 2, s - 4, 1);
-  }
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(px + 2, py + s - 1, s - 4, 1);
 
-  function endGame() {
-    gameRunning = false;
-    if (gameAnimFrame) cancelAnimationFrame(gameAnimFrame);
-    log('game ended, rows cleared:', rowsCleared);
-
-    // Fade game out
-    $('stageGame').style.transition = 'opacity 0.8s';
-    $('stageGame').style.opacity = '0';
-
-    setTimeout(function () {
-      showStage('transition');
-    }, 800);
-  }
-
-  function skipToSearch() {
-    log('skipping to search');
-    showStage('picks');
-    detectLocation();
+    ctx.restore();
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -508,7 +579,6 @@
   // ═══════════════════════════════════════════════════════════
 
   function selectChip(type, chip) {
-    if (navigator.vibrate) navigator.vibrate(10);
     var cid = type === 'interest' ? 'interestChips' : 'locationChips';
     each('#' + cid + ' .chip', function (c) { c.classList.remove('selected'); });
     chip.classList.add('selected');
@@ -546,13 +616,10 @@
     if (!selectedInterest) selectedInterest = 'Anything';
     if (!selectedLocation) selectedLocation = detectedLocation || 'Anywhere';
 
-    if (navigator.vibrate) navigator.vibrate(15);
     extraction.interest = selectedInterest.toLowerCase();
     extraction.location = selectedLocation;
+    log('picks:', userName, extraction.interest, extraction.location);
 
-    log('submitting picks:', userName, extraction.interest, extraction.location);
-
-    // Fade out picks → show chat
     var pv = $('picksView');
     pv.style.opacity = '0';
     pv.style.transition = 'opacity 0.4s';
@@ -562,27 +629,20 @@
       stage = 'chat';
       $('bigName').textContent = userName;
       $('chatView').classList.add('active');
-
       showThinking();
 
-      log('calling worker for first message...');
       callWorker(null, false, function (err, data) {
         removeThinking();
-
         if (err) {
-          log('worker error on first call:', err);
           showError('Could not connect to the job search. ' + (err.message || err));
           enableInput();
           return;
         }
 
-        log('worker response:', data.message ? data.message.substring(0, 80) + '...' : '(no message)');
-
         cachedJobs = data.jobs || [];
         totalResults = data.totalResults || 0;
         searchUrl = data.searchUrl || '';
         lastSearchKey = extraction.interest + '|' + extraction.location;
-
         rawHistory.push({ role: 'assistant', content: data._raw || JSON.stringify({ message: data.message }) });
 
         animateSignal(data.signal || 25);
@@ -599,27 +659,17 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // WORKER CALL
+  // WORKER
   // ═══════════════════════════════════════════════════════════
 
   function callWorker(userMessage, forceSearch, callback) {
-    if (!WORKER) {
-      log('no worker URL configured');
-      callback(new Error('No worker URL configured'), null);
-      return;
-    }
+    if (!WORKER) { callback(new Error('No worker URL configured'), null); return; }
 
-    var controller = null;
-    var timeoutId = null;
+    var controller = null, tid = null;
     try {
       controller = new AbortController();
-      timeoutId = setTimeout(function () {
-        log('request timed out');
-        controller.abort();
-      }, TIMEOUT);
-    } catch (e) {
-      log('AbortController not supported');
-    }
+      tid = setTimeout(function () { controller.abort(); }, TIMEOUT);
+    } catch (e) {}
 
     var payload = {
       name: userName,
@@ -628,26 +678,13 @@
       history: rawHistory.slice(),
       forceSearch: !!forceSearch,
     };
+    if (cachedJobs && !forceSearch) payload.cachedJobs = cachedJobs;
 
-    if (cachedJobs && !forceSearch) {
-      payload.cachedJobs = cachedJobs;
-    }
-
-    log('POST /chat', { name: payload.name, interest: payload.interest_hint, location: payload.location_hint });
-
-    var opts = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    };
+    var opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) };
     if (controller) opts.signal = controller.signal;
 
     fetch(WORKER + '/chat', opts)
-      .then(function (r) {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (!r.ok) throw new Error('Server returned ' + r.status);
-        return r.json();
-      })
+      .then(function (r) { if (tid) clearTimeout(tid); if (!r.ok) throw new Error('Server ' + r.status); return r.json(); })
       .then(function (data) {
         if (data.extraction) {
           extraction.interest = data.extraction.interest || extraction.interest;
@@ -658,20 +695,14 @@
           totalResults = data.totalResults || cachedJobs.length;
           searchUrl = data.searchUrl || searchUrl;
         }
-        if (data.topPickJob) {
-          topPickJob = data.topPickJob;
-        }
+        if (data.topPickJob) topPickJob = data.topPickJob;
         callback(null, data);
       })
-      .catch(function (e) {
-        if (timeoutId) clearTimeout(timeoutId);
-        log('fetch error:', e.message || e);
-        callback(e, null);
-      });
+      .catch(function (e) { if (tid) clearTimeout(tid); callback(e, null); });
   }
 
   function getFallback() {
-    return userName + ', the system is connecting. Try sending a message \u2014 the job database has thousands of federal positions waiting.';
+    return userName + ', the system is connecting. Try sending a message.';
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -690,7 +721,6 @@
   function sendMessage(text) {
     if (isWaiting) return;
     isWaiting = true;
-    if (navigator.vibrate) navigator.vibrate(10);
 
     addUserBubble(text);
     hideSuggestions();
@@ -698,39 +728,28 @@
     rawHistory.push({ role: 'user', content: text });
     showThinking();
 
-    log('sending message:', text);
-
     var currentKey = extraction.interest + '|' + extraction.location;
     var needSearch = currentKey !== lastSearchKey;
 
     callWorker(text, needSearch, function (err, data) {
       removeThinking();
-
       if (err) {
-        showError('Connection issue \u2014 try sending your message again.');
+        showError('Connection issue. Try again.');
         enableInput();
         isWaiting = false;
         return;
       }
 
       rawHistory.push({ role: 'assistant', content: data._raw || JSON.stringify({ message: data.message }) });
-
       signal = data.signal || signal;
       animateSignal(signal);
       updateResultsCount();
       lastSearchKey = extraction.interest + '|' + extraction.location;
-
-      if (data.refineSearch) {
-        lastSearchKey = '';
-      }
+      if (data.refineSearch) lastSearchKey = '';
 
       addAssistantBubble(data.message || 'Let me look into that...', function () {
-        if (data.showJobs && data.showJobs.length > 0) {
-          showJobCards(data.showJobs);
-        }
-        if (data.topPickJob) {
-          showFeaturedJob(data.topPickJob);
-        }
+        if (data.showJobs && data.showJobs.length > 0) showJobCards(data.showJobs);
+        if (data.topPickJob) showFeaturedJob(data.topPickJob);
         showSuggestions(data.suggestions);
         enableInput();
         isWaiting = false;
@@ -739,7 +758,7 @@
     });
   }
 
-  // ─── Chat UI ──────────────────────────────────────────────
+  // ─── Chat UI ────────────────────────────────────────────
 
   function addAssistantBubble(text, callback) {
     var area = $('chatArea');
@@ -748,7 +767,6 @@
 
     var mark = document.createElement('span');
     mark.className = 'bmark';
-    mark.innerHTML = '&#x2728;';
     var btxt = document.createElement('span');
     btxt.className = 'btxt';
     var cur = document.createElement('span');
@@ -760,23 +778,22 @@
     area.appendChild(bubble);
     scrollChat();
 
-    var safeText = text || '';
-    var i = 0;
-
+    var safe = text || '';
+    var idx = 0;
     function type() {
-      if (i >= safeText.length) {
+      if (idx >= safe.length) {
         cur.remove();
-        btxt.innerHTML = esc(safeText).replace(
+        btxt.innerHTML = esc(safe).replace(
           new RegExp(esc(userName), 'g'),
           '<span class="hl">' + esc(userName) + '</span>'
         );
         if (callback) callback();
         return;
       }
-      btxt.textContent = safeText.substring(0, i + 1);
-      i++;
+      btxt.textContent = safe.substring(0, idx + 1);
+      idx++;
       scrollChat();
-      setTimeout(type, 10 + Math.random() * 14);
+      setTimeout(type, 12 + Math.random() * 14);
     }
     type();
   }
@@ -804,7 +821,7 @@
     var el = document.createElement('div');
     el.className = 'chat-bubble assistant-bubble thinking';
     el.id = 'thinking';
-    el.innerHTML = '<span class="bmark">&#x2728;</span><span class="dots"><span>.</span><span>.</span><span>.</span></span>';
+    el.innerHTML = '<span class="bmark"></span><span class="dots"><span></span><span></span><span></span></span>';
     area.appendChild(el);
     scrollChat();
   }
@@ -814,7 +831,7 @@
     if (el) el.remove();
   }
 
-  // ─── Job Cards ────────────────────────────────────────────
+  // ─── Job Cards ──────────────────────────────────────────
 
   function showJobCards(jobs) {
     if (!jobs || !jobs.length) return;
@@ -846,7 +863,6 @@
 
       container.appendChild(card);
     }
-
     area.appendChild(container);
     scrollChat();
   }
@@ -861,9 +877,8 @@
     card.rel = 'noopener';
 
     var salary = formatSalary(job.salaryMin, job.salaryMax, job.salaryPeriod);
-
     card.innerHTML =
-      '<div class="fj-badge">&#x2728; TOP MATCH</div>' +
+      '<div class="fj-badge">top match</div>' +
       '<div class="fj-title">' + esc(job.title) + '</div>' +
       '<div class="fj-org">' + esc(job.org) + '</div>' +
       '<div class="fj-dept">' + esc(job.dept) + '</div>' +
@@ -878,24 +893,18 @@
 
   function formatSalary(min, max, period) {
     if (!min && !max) return '';
-    var fmt = function (n) {
-      var num = parseInt(n);
-      return isNaN(num) ? n : '$' + num.toLocaleString('en-US');
-    };
+    var fmt = function (n) { var v = parseInt(n); return isNaN(v) ? n : '$' + v.toLocaleString('en-US'); };
     var range = min && max ? fmt(min) + ' \u2013 ' + fmt(max) : fmt(min || max);
     var per = period === 'Per Year' ? '/yr' : period === 'Per Hour' ? '/hr' : '';
     return range + per;
   }
 
-  // ─── Suggestions ──────────────────────────────────────────
+  // ─── Suggestions ────────────────────────────────────────
 
   function showSuggestions(chips) {
     var row = $('suggestRow');
     row.innerHTML = '';
-    if (!chips || !chips.length) {
-      row.classList.remove('visible');
-      return;
-    }
+    if (!chips || !chips.length) { row.classList.remove('visible'); return; }
     for (var i = 0; i < chips.length; i++) {
       (function (label) {
         var btn = document.createElement('button');
@@ -908,24 +917,14 @@
     setTimeout(function () { row.classList.add('visible'); }, 100);
   }
 
-  function hideSuggestions() {
-    $('suggestRow').classList.remove('visible');
-  }
+  function hideSuggestions() { $('suggestRow').classList.remove('visible'); }
 
-  // ─── Input ────────────────────────────────────────────────
+  // ─── Input ──────────────────────────────────────────────
 
-  function enableInput() {
-    $('chatInput').disabled = false;
-    $('chatInput').focus();
-    $('chatSend').disabled = false;
-  }
+  function enableInput() { $('chatInput').disabled = false; $('chatInput').focus(); $('chatSend').disabled = false; }
+  function disableInput() { $('chatInput').disabled = true; $('chatSend').disabled = true; }
 
-  function disableInput() {
-    $('chatInput').disabled = true;
-    $('chatSend').disabled = true;
-  }
-
-  // ─── Signal ───────────────────────────────────────────────
+  // ─── Signal ─────────────────────────────────────────────
 
   function animateSignal(target) {
     var fill = $('signalFill'), pct = $('signalPct'), label = $('signalLabel');
@@ -948,61 +947,50 @@
       var v = Math.floor(current + (target - current) * e);
       fill.style.width = v + '%';
       pct.textContent = v + '%';
-      if (v < 40) fill.style.background = 'var(--warm)';
-      else if (v < 70) fill.style.background = 'linear-gradient(90deg,var(--warm),var(--green))';
-      else fill.style.background = 'linear-gradient(90deg,var(--warm),var(--green),var(--gold))';
+      if (v < 40) fill.style.background = 'var(--gold)';
+      else if (v < 70) fill.style.background = 'linear-gradient(90deg,var(--gold),var(--sage))';
+      else fill.style.background = 'linear-gradient(90deg,var(--gold),var(--sage),var(--gold))';
       if (p < 1) requestAnimationFrame(tick);
     }
     tick();
   }
 
-  // ─── Results Count ────────────────────────────────────────
-
   function updateResultsCount() {
     var el = $('resultsCount');
     if (!el) return;
-    if (totalResults > 0) {
-      el.textContent = totalResults.toLocaleString() + ' federal positions found';
-      el.style.display = 'block';
-    } else {
-      el.style.display = 'none';
-    }
+    if (totalResults > 0) { el.textContent = totalResults.toLocaleString() + ' federal positions found'; el.style.display = 'block'; }
+    else el.style.display = 'none';
   }
 
-  // ─── CTA ──────────────────────────────────────────────────
+  // ─── CTA ────────────────────────────────────────────────
 
   function updateCTA(data) {
-    var section = $('ctaSection');
-    var btn = $('ctaBtn');
-    var fine = $('ctaFine');
-
+    var section = $('ctaSection'), btn = $('ctaBtn'), fine = $('ctaFine');
     section.classList.add('visible');
 
     if (data && data.topPickJob) {
       var job = data.topPickJob;
-      btn.textContent = 'APPLY: ' + job.title + ' \u2192';
+      btn.textContent = 'Apply: ' + job.title;
       btn.classList.add('hot');
       btn.setAttribute('data-url', job.applyUrl || job.url || '');
       if (fine) fine.textContent = job.org + ' \u00b7 ' + formatSalary(job.salaryMin, job.salaryMax, job.salaryPeriod);
     } else if (signal >= 60 && topPickJob) {
-      btn.textContent = 'APPLY: ' + topPickJob.title + ' \u2192';
+      btn.textContent = 'Apply: ' + topPickJob.title;
       btn.classList.add('hot');
       btn.setAttribute('data-url', topPickJob.applyUrl || topPickJob.url || '');
       if (fine) fine.textContent = topPickJob.org + ' \u00b7 ' + formatSalary(topPickJob.salaryMin, topPickJob.salaryMax, topPickJob.salaryPeriod);
     } else if (totalResults > 0) {
-      btn.textContent = 'Browse all ' + totalResults.toLocaleString() + ' positions \u2192';
+      btn.textContent = 'Browse all ' + totalResults.toLocaleString() + ' positions';
       btn.classList.remove('hot');
       btn.setAttribute('data-url', searchUrl);
-      if (fine) fine.textContent = 'USAJobs.gov \u00b7 keep chatting to find your match';
+      if (fine) fine.textContent = 'USAJobs.gov';
     } else {
-      btn.textContent = 'Search USAJobs.gov \u2192';
+      btn.textContent = 'Search USAJobs.gov';
       btn.classList.remove('hot');
       btn.setAttribute('data-url', 'https://www.usajobs.gov');
-      if (fine) fine.textContent = 'federal positions \u00b7 verified \u00b7 real';
+      if (fine) fine.textContent = 'verified federal positions';
     }
   }
-
-  // ─── Apply ────────────────────────────────────────────────
 
   function goToApply() {
     var btn = $('ctaBtn');
@@ -1013,7 +1001,7 @@
     else window.open('https://www.usajobs.gov', '_blank', 'noopener');
   }
 
-  // ─── Geo ──────────────────────────────────────────────────
+  // ─── Geo ────────────────────────────────────────────────
 
   function detectLocation() {
     if (!WORKER) return;
@@ -1021,12 +1009,11 @@
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (d.detected && d.locationString) {
-          log('detected location:', d.locationString);
           detectedLocation = d.locationString;
           injectDetectedChip(detectedLocation);
         }
       })
-      .catch(function (e) { log('geo detection failed:', e.message); });
+      .catch(function () {});
   }
 
   function injectDetectedChip(loc) {
@@ -1039,13 +1026,37 @@
     chip.textContent = loc;
     c.insertBefore(chip, c.firstChild);
     chip.addEventListener('click', function () { selectChip('location', chip); });
-    setTimeout(function () {
-      selectChip('location', chip);
-      chip.style.animation = 'popIn .4s ease both';
-    }, 300);
+    setTimeout(function () { selectChip('location', chip); }, 300);
   }
 
-  // ─── Boot ─────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════
+  // TOOLTIP SYSTEM — citation bottom sheet
+  // ═══════════════════════════════════════════════════════════
+
+  function initTooltips() {
+    var sheet = $('citeSheet');
+    var title = $('citeTitle');
+    var text = $('citeText');
+
+    // Click any .cite to open sheet
+    document.addEventListener('click', function (e) {
+      var cite = e.target.closest('.cite');
+      if (cite) {
+        e.preventDefault();
+        title.textContent = cite.getAttribute('data-title') || '';
+        text.textContent = cite.getAttribute('data-cite') || '';
+        sheet.classList.add('vis');
+        return;
+      }
+
+      // Click dismiss or outside sheet
+      if (e.target.id === 'citeDismiss' || (!e.target.closest('.cite-sheet') && sheet.classList.contains('vis'))) {
+        sheet.classList.remove('vis');
+      }
+    });
+  }
+
+  // ─── Boot ───────────────────────────────────────────────
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 

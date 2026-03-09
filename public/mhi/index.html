@@ -3,637 +3,743 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0a0f1e">
-<title>Take a Breath &middot; Federal Job Search</title>
-<meta name="description" content="An evidence-based mental health micro-intervention for job seekers. Take 15 seconds. Clear the noise. Then search federal jobs with AI.">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#0c0f14">
+<title>A Moment &middot; Federal Job Search</title>
+<meta name="description" content="Take a breath before you search. An evidence-based pause for job seekers, followed by AI-powered federal job matching.">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0a0f1e;
-    --surface: #111827;
-    --surface2: #1a2236;
-    --border: #2a3450;
-    --white: #f0f0f5;
-    --grey: #8b95b0;
-    --dim: #4a5572;
-    --warm: #f5a623;
-    --warm-glow: rgba(245,166,35,0.12);
-    --teal: #3ecfb4;
-    --teal-glow: rgba(62,207,180,0.10);
-    --rose: #e8758a;
-    --rose-glow: rgba(232,117,138,0.10);
-    --sage: #7bc89c;
-    --sage-glow: rgba(123,200,156,0.10);
-    --sky: #5fa8e8;
-    --sky-glow: rgba(95,168,232,0.10);
-    --green: #34d399;
-    --green-glow: rgba(52,211,153,0.12);
-    --gold: #fbbf24;
-    --red: #f87171;
-    --cyan: #22d3ee;
-  }
-  *{margin:0;padding:0;box-sizing:border-box}
-  html,body{
-    height:100%;
-    background:var(--bg);color:var(--white);
-    font-family:'Inter',system-ui,sans-serif;
-    -webkit-font-smoothing:antialiased;
-    overflow:hidden;
-  }
+/* ═══════════════════════════════════════════════════
+   MHI — Museum-quality mindful job search
+   Eastern / contemplative aesthetic
+   ═══════════════════════════════════════════════════ */
+:root {
+  --void: #0c0f14;
+  --surface: #141820;
+  --surface2: #1a1f2a;
+  --border: #252a38;
+  --stone: #d4cdc0;
+  --ink: #9a9484;
+  --dim: #5a554a;
+  --gold: #c4a35a;
+  --gold-glow: rgba(196,163,90,0.10);
+  --sage: #7a9e8e;
+  --sage-glow: rgba(122,158,142,0.08);
+  --water: #6a8fa7;
+  --clay: #b8856e;
+  --rose: #b07a7a;
+  --plum: #8e7299;
+  --mist: #8a9eae;
+  --green: #6aaa8e;
+  --green-glow: rgba(106,170,142,0.10);
+  --red: #c47a7a;
+  --serif: 'Cormorant Garamond', 'Georgia', serif;
+  --sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  height:100%;background:var(--void);color:var(--stone);
+  font-family:var(--sans);-webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+::selection{background:rgba(196,163,90,0.2);color:var(--stone)}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
-  .app{height:100dvh;width:100%;position:relative;overflow:hidden}
+.app{height:100dvh;width:100%;position:relative;overflow:hidden}
 
-  /* ───── TABS ───── */
-  .tab-bar{
-    position:fixed;top:0;left:0;right:0;z-index:100;
-    display:flex;align-items:center;justify-content:center;
-    gap:4px;padding:10px 16px 8px;
-    background:rgba(10,15,30,0.92);backdrop-filter:blur(12px);
-    border-bottom:1px solid var(--border);
-  }
-  .tab{
-    padding:6px 18px;font-size:12px;font-weight:500;
-    color:var(--dim);background:transparent;border:1px solid transparent;
-    border-radius:20px;cursor:pointer;transition:all .25s;
-    font-family:'Inter',sans-serif;letter-spacing:0.3px;
-  }
-  .tab:hover{color:var(--grey)}
-  .tab.active{color:var(--warm);border-color:var(--warm);background:rgba(245,166,35,0.06)}
+/* ═══════ TABS ═══════ */
+.tabs{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  gap:2px;padding:10px 16px 8px;
+  background:rgba(12,15,20,0.88);backdrop-filter:blur(16px);
+  border-bottom:1px solid rgba(37,42,56,0.6);
+}
+.tab{
+  padding:5px 16px;font-family:var(--sans);font-size:11px;
+  font-weight:400;letter-spacing:0.8px;
+  color:var(--dim);background:transparent;border:1px solid transparent;
+  border-radius:16px;cursor:pointer;transition:all .3s ease;
+}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--gold);border-color:rgba(196,163,90,0.3)}
 
-  /* ───── SCREENS ───── */
-  .screen{
-    position:absolute;inset:0;top:44px;
-    overflow-y:auto;-webkit-overflow-scrolling:touch;
-    transition:opacity .4s ease,transform .4s ease;
-  }
-  .screen.hidden{opacity:0;pointer-events:none;transform:translateY(8px)}
+/* ═══════ SCREENS ═══════ */
+.screen{
+  position:absolute;inset:0;top:38px;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  transition:opacity .5s ease;
+}
+.screen.hidden{opacity:0;pointer-events:none}
 
-  /* ───── LANDING (Stage 0) ───── */
-  .landing{
-    display:flex;flex-direction:column;align-items:center;
-    justify-content:center;text-align:center;
-    min-height:100%;padding:40px 24px;
-  }
-  .landing-icon{
-    font-size:48px;margin-bottom:24px;
-    animation:float 4s ease-in-out infinite;
-  }
-  .landing h1{
-    font-size:22px;font-weight:600;color:var(--white);
-    line-height:1.4;margin-bottom:12px;
-  }
-  .landing h1 em{
-    font-style:normal;color:var(--warm);
-  }
-  .landing .honest{
-    font-size:14px;color:var(--grey);line-height:1.7;
-    max-width:380px;margin-bottom:28px;
-  }
-  .landing .honest strong{color:var(--white);font-weight:500}
-  .landing .offer{
-    font-size:13px;color:var(--teal);line-height:1.6;
-    max-width:340px;margin-bottom:32px;
-    padding:14px 20px;
-    border:1px solid rgba(62,207,180,0.2);border-radius:12px;
-    background:rgba(62,207,180,0.04);
-  }
-  .begin-btn{
-    padding:14px 40px;font-family:'Inter',sans-serif;
-    font-size:15px;font-weight:600;color:var(--bg);
-    background:linear-gradient(135deg,var(--warm),#e8923a);
-    border:none;border-radius:12px;cursor:pointer;
-    box-shadow:0 4px 24px var(--warm-glow);
-    transition:all .3s;letter-spacing:0.3px;
-  }
-  .begin-btn:hover{transform:translateY(-1px);box-shadow:0 6px 32px rgba(245,166,35,0.2)}
-  .begin-btn:active{transform:scale(0.97)}
-  .skip-link{
-    margin-top:14px;font-size:11px;color:var(--dim);
-    cursor:pointer;border:none;background:none;
-    font-family:'Inter',sans-serif;letter-spacing:0.5px;
-    transition:color .2s;
-  }
-  .skip-link:hover{color:var(--grey)}
+/* ═══════════════════════════════════════════
+   LANDING — cinematic slow reveal
+   ═══════════════════════════════════════════ */
+.landing{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;
+  padding:40px 32px;overflow:hidden;
+}
 
-  /* ───── GAME (Stage 1) ───── */
-  .game-stage{
-    display:flex;flex-direction:column;align-items:center;
-    justify-content:center;min-height:100%;padding:20px;
-  }
-  .game-stage.hidden .game-wrap{transform:scale(0.95);opacity:0}
+/* Enso circle */
+.enso{width:72px;height:72px;margin-bottom:36px;color:var(--gold);opacity:0}
+.enso-path{
+  stroke-dasharray:280;stroke-dashoffset:280;
+  transition:stroke-dashoffset 2.5s cubic-bezier(0.4,0,0.2,1);
+}
+.enso.draw .enso-path{stroke-dashoffset:0}
+.enso.draw{opacity:1;transition:opacity .6s ease}
 
-  .breath-guide{
-    font-size:13px;color:var(--grey);letter-spacing:1px;
-    font-weight:300;margin-bottom:16px;
-    height:20px;transition:opacity .5s;
-  }
-  .breath-guide em{font-style:normal;color:var(--teal);font-weight:500}
+/* Reveal lines */
+.r{
+  opacity:0;transform:translateY(16px);
+  transition:opacity 1s ease, transform 1s ease;
+}
+.r.vis{opacity:1;transform:translateY(0)}
 
-  .game-wrap{
-    position:relative;
-    transition:all .8s ease;
-  }
-  .game-canvas{
-    border-radius:12px;
-    border:1px solid var(--border);
-    background:var(--surface);
-    display:block;
-  }
+.r1{
+  font-family:var(--serif);font-size:28px;font-weight:300;
+  color:var(--stone);line-height:1.3;margin-bottom:40px;
+  letter-spacing:-0.3px;
+}
+.r2{
+  font-family:var(--serif);font-size:18px;font-weight:300;
+  font-style:italic;color:var(--ink);line-height:1.5;
+  margin-bottom:8px;
+}
+.r3{
+  font-family:var(--serif);font-size:18px;font-weight:300;
+  font-style:italic;color:var(--ink);line-height:1.5;
+  margin-bottom:36px;
+}
+.r4{
+  font-size:13px;font-weight:300;color:var(--dim);
+  line-height:1.7;margin-bottom:10px;letter-spacing:0.2px;
+}
+.r5{
+  font-family:var(--serif);font-size:20px;font-weight:400;
+  color:var(--gold);line-height:1.4;margin-bottom:40px;
+  letter-spacing:0.2px;
+}
+.begin{
+  font-family:var(--serif);font-size:16px;font-weight:400;
+  font-style:italic;color:var(--gold);background:none;
+  border:none;cursor:pointer;letter-spacing:0.5px;
+  padding:12px 0;opacity:0;transform:translateY(10px);
+  transition:opacity 1s ease, transform 1s ease, color .3s;
+  border-bottom:1px solid rgba(196,163,90,0.3);
+}
+.begin.vis{opacity:1;transform:translateY(0)}
+.begin:hover{color:var(--stone);border-bottom-color:rgba(196,163,90,0.5)}
 
-  .breath-circle{
-    position:absolute;
-    top:50%;left:50%;
-    transform:translate(-50%,-50%);
-    width:80px;height:80px;
-    border-radius:50%;
-    border:2px solid rgba(62,207,180,0.3);
-    pointer-events:none;
-    animation:breatheCircle 8s ease-in-out infinite;
-    opacity:0.5;
-  }
+.skip{
+  font-family:var(--sans);font-size:10px;font-weight:300;
+  color:rgba(90,85,74,0.5);background:none;border:none;
+  cursor:pointer;margin-top:20px;letter-spacing:1px;
+  opacity:0;transition:opacity 1s ease, color .3s;
+}
+.skip.vis{opacity:1}
+.skip:hover{color:var(--dim)}
 
-  .game-word{
-    position:absolute;bottom:-32px;left:0;right:0;
-    text-align:center;
-    font-size:14px;font-weight:500;color:var(--warm);
-    opacity:0;transition:opacity .6s;letter-spacing:1px;
-  }
-  .game-word.visible{opacity:1}
+/* Landing exit animation */
+.landing.exiting .enso{transform:translateY(-30px) scale(1.05);opacity:0;transition:all .8s ease .0s}
+.landing.exiting .r1{transform:translateY(-40px);opacity:0;transition:all .7s ease .05s}
+.landing.exiting .r2{transform:translateY(-45px);opacity:0;transition:all .7s ease .08s}
+.landing.exiting .r3{transform:translateY(-50px);opacity:0;transition:all .7s ease .11s}
+.landing.exiting .r4{transform:translateY(-35px);opacity:0;transition:all .6s ease .06s}
+.landing.exiting .r5{transform:translateY(-40px);opacity:0;transition:all .7s ease .1s}
+.landing.exiting .begin{transform:translateY(-20px);opacity:0;transition:all .5s ease 0s}
+.landing.exiting .skip{opacity:0;transition:opacity .3s ease 0s}
 
-  .game-timer{
-    margin-top:20px;width:200px;height:3px;
-    background:var(--surface2);border-radius:2px;overflow:hidden;
-  }
-  .game-timer-fill{
-    height:100%;width:0;border-radius:2px;
-    background:linear-gradient(90deg,var(--teal),var(--warm));
-    transition:width .3s linear;
-  }
+/* ═══════════════════════════════════════════
+   GAME — meditative Tetris
+   ═══════════════════════════════════════════ */
+.game{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:12px 16px;
+  opacity:0;pointer-events:none;
+  transition:opacity .8s ease .3s;
+}
+.game.active{opacity:1;pointer-events:auto}
 
-  .game-message{
-    margin-top:16px;font-size:13px;color:var(--dim);
-    font-weight:300;letter-spacing:0.5px;
-    text-align:center;max-width:280px;line-height:1.5;
-    opacity:0;transition:opacity .8s;
-  }
-  .game-message.visible{opacity:1}
+.breath-hint{
+  font-family:var(--serif);font-size:15px;font-weight:300;
+  font-style:italic;color:var(--ink);letter-spacing:0.5px;
+  height:22px;margin-bottom:12px;
+  transition:opacity .6s ease;
+}
 
-  /* ───── TRANSITION ───── */
-  .transition-stage{
-    display:flex;flex-direction:column;align-items:center;
-    justify-content:center;min-height:100%;padding:40px 24px;
-    text-align:center;
-  }
-  .transition-stage .check{font-size:48px;margin-bottom:20px;opacity:0;animation:popIn .6s ease .2s forwards}
-  .transition-stage h2{font-size:20px;font-weight:500;color:var(--white);margin-bottom:10px;opacity:0;animation:fadeUp .6s ease .4s forwards}
-  .transition-stage p{font-size:14px;color:var(--grey);line-height:1.6;max-width:320px;opacity:0;animation:fadeUp .6s ease .6s forwards}
-  .transition-stage .ready-btn{
-    margin-top:28px;padding:14px 36px;
-    font-family:'Inter',sans-serif;font-size:14px;font-weight:600;
-    color:var(--bg);background:var(--green);
-    border:none;border-radius:12px;cursor:pointer;
-    box-shadow:0 4px 20px var(--green-glow);
-    opacity:0;animation:fadeUp .6s ease .8s forwards;
-    transition:all .3s;
-  }
-  .transition-stage .ready-btn:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(52,211,153,0.2)}
-  .transition-stage .ready-btn:active{transform:scale(0.97)}
+.game-board{position:relative;margin-bottom:10px}
+.game-canvas{
+  display:block;border-radius:8px;
+  border:1px solid var(--border);
+  background:var(--surface);
+}
 
-  /* ───── SEARCH (Stage 2) ───── */
-  .search-stage{
-    display:flex;flex-direction:column;
-    height:100%;
-  }
+.game-word{
+  position:absolute;left:0;right:0;
+  text-align:center;pointer-events:none;
+  font-family:var(--serif);font-size:16px;font-weight:300;
+  font-style:italic;color:var(--gold);
+  opacity:0;transition:opacity .8s ease, transform .8s ease;
+  transform:translateY(4px);
+}
+.game-word.vis{opacity:1;transform:translateY(0)}
 
-  /* Picks */
-  .picks{
-    display:flex;flex-direction:column;align-items:center;
-    justify-content:center;text-align:center;
-    min-height:100%;padding:24px 20px;
-  }
-  .picks-prompt{
-    font-size:17px;font-weight:400;color:var(--grey);
-    margin-bottom:16px;line-height:1.5;
-  }
-  .picks-prompt em{color:var(--white);font-style:normal;font-weight:500}
+.timer-track{
+  width:160px;height:2px;background:var(--surface2);
+  border-radius:1px;overflow:hidden;margin-bottom:16px;
+}
+.timer-fill{
+  height:100%;width:0;border-radius:1px;
+  background:linear-gradient(90deg,rgba(196,163,90,0.4),var(--gold));
+  transition:width .3s linear;
+}
 
-  .picks-label{
-    font-family:'JetBrains Mono',monospace;font-size:10px;
-    color:var(--grey);letter-spacing:2px;text-transform:uppercase;
-    margin-bottom:8px;
-  }
+/* 3 Controls */
+.controls{
+  display:flex;gap:24px;align-items:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.ctrl{
+  width:56px;height:56px;border-radius:50%;
+  background:transparent;border:1px solid var(--border);
+  color:var(--ink);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s ease;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+.ctrl:active{
+  background:rgba(196,163,90,0.06);
+  border-color:var(--gold);color:var(--gold);
+  transform:scale(0.92);
+}
+.ctrl svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 
-  .name-input{
-    width:100%;max-width:280px;padding:12px 16px;margin-bottom:18px;
-    font-family:'Inter',sans-serif;font-size:17px;font-weight:500;
-    color:var(--white);background:var(--surface);
-    border:1px solid var(--border);border-radius:12px;
-    text-align:center;outline:none;caret-color:var(--warm);
-    transition:border-color .3s,box-shadow .3s;
-  }
-  .name-input:focus{border-color:var(--warm);box-shadow:0 0 20px var(--warm-glow)}
-  .name-input::placeholder{color:var(--dim)}
+/* Game complete overlay */
+.game-overlay{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;
+  background:rgba(12,15,20,0.85);backdrop-filter:blur(8px);
+  opacity:0;pointer-events:none;
+  transition:opacity .6s ease;
+  border-radius:8px;padding:20px;
+}
+.game-overlay.vis{opacity:1;pointer-events:auto}
+.game-overlay .ov-line{
+  font-family:var(--serif);font-size:18px;font-weight:300;
+  font-style:italic;color:var(--stone);margin-bottom:28px;
+  line-height:1.5;
+}
+.game-overlay .ov-actions{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.ov-btn{
+  font-family:var(--serif);font-size:14px;font-weight:400;
+  font-style:italic;color:var(--ink);background:none;
+  border:1px solid var(--border);border-radius:20px;
+  padding:10px 22px;cursor:pointer;transition:all .25s;
+  letter-spacing:0.3px;
+}
+.ov-btn:hover,.ov-btn:active{color:var(--gold);border-color:rgba(196,163,90,0.4)}
+.ov-btn.primary{color:var(--gold);border-color:rgba(196,163,90,0.4)}
+.ov-btn.primary:hover,.ov-btn.primary:active{color:var(--stone);border-color:var(--gold)}
 
-  .chips{
-    display:flex;flex-wrap:wrap;gap:6px;justify-content:center;
-    max-width:360px;margin-bottom:14px;
-  }
-  .chip{
-    padding:8px 14px;font-family:'Inter',sans-serif;
-    font-size:12px;font-weight:500;color:var(--grey);
-    background:var(--surface);border:1px solid var(--border);
-    border-radius:20px;cursor:pointer;transition:all .2s;
-    -webkit-tap-highlight-color:transparent;
-  }
-  .chip:active{transform:scale(0.95)}
-  .chip.selected{color:var(--warm);border-color:var(--warm);box-shadow:0 0 15px var(--warm-glow)}
-  .chip.detected{border-color:var(--teal);color:var(--teal)}
-  .chip.detected.selected{border-color:var(--teal);color:var(--teal);box-shadow:0 0 15px var(--teal-glow)}
+/* ═══════════════════════════════════════════
+   SEARCH — picks + chat
+   ═══════════════════════════════════════════ */
+.search{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;height:100%;
+  opacity:0;pointer-events:none;
+  transition:opacity .6s ease;
+}
+.search.active{opacity:1;pointer-events:auto}
 
-  .loc-input{
-    width:100%;max-width:280px;padding:8px 14px;margin-bottom:16px;
-    font-family:'Inter',sans-serif;font-size:13px;
-    color:var(--white);background:var(--surface);
-    border:1px solid var(--border);border-radius:10px;
-    text-align:center;outline:none;caret-color:var(--warm);
-    transition:border-color .3s;
-  }
-  .loc-input:focus{border-color:var(--warm);box-shadow:0 0 12px var(--warm-glow)}
-  .loc-input::placeholder{color:var(--dim);font-size:11px}
+/* Picks */
+.picks{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;
+  flex:1;padding:24px 20px;
+}
+.picks-prompt{
+  font-family:var(--serif);font-size:20px;font-weight:300;
+  color:var(--ink);margin-bottom:20px;line-height:1.4;
+  font-style:italic;
+}
+.picks-prompt em{color:var(--stone);font-style:normal;font-weight:400}
 
-  .go-btn{
-    width:100%;max-width:280px;padding:14px;
-    font-family:'Inter',sans-serif;font-size:14px;font-weight:600;
-    color:var(--bg);background:var(--green);
-    border:none;border-radius:12px;cursor:pointer;
-    box-shadow:0 0 20px var(--green-glow);margin-top:4px;
-    transition:all .3s;letter-spacing:0.3px;
-  }
-  .go-btn:active{transform:scale(0.97)}
-  .go-btn:disabled{opacity:.3;cursor:default}
-  .go-btn.pulse{animation:btnPulse 1.5s ease-in-out infinite}
+.picks-label{
+  font-size:9px;font-weight:400;
+  color:var(--dim);letter-spacing:2.5px;text-transform:uppercase;
+  margin-bottom:8px;margin-top:4px;
+}
 
-  .skip-picks{
-    margin-top:10px;font-size:11px;color:var(--dim);
-    cursor:pointer;border:none;background:none;
-    font-family:'Inter',sans-serif;letter-spacing:0.5px;
-  }
+.name-input{
+  width:100%;max-width:260px;padding:12px 16px;margin-bottom:20px;
+  font-family:var(--serif);font-size:20px;font-weight:400;
+  color:var(--stone);background:transparent;
+  border:none;border-bottom:1px solid var(--border);
+  border-radius:0;text-align:center;outline:none;
+  caret-color:var(--gold);transition:border-color .4s;
+}
+.name-input:focus{border-bottom-color:var(--gold)}
+.name-input::placeholder{color:var(--dim);font-style:italic;font-weight:300}
 
-  /* ───── CHAT ───── */
-  .chat-view{
-    display:none;flex-direction:column;height:100%;
-  }
-  .chat-view.active{display:flex;animation:fadeUp .5s ease both}
+.chips{
+  display:flex;flex-wrap:wrap;gap:6px;justify-content:center;
+  max-width:340px;margin-bottom:14px;
+}
+.chip{
+  padding:7px 14px;font-family:var(--sans);
+  font-size:11px;font-weight:400;color:var(--ink);
+  background:transparent;border:1px solid var(--border);
+  border-radius:18px;cursor:pointer;transition:all .25s;
+  -webkit-tap-highlight-color:transparent;letter-spacing:0.2px;
+}
+.chip:active{transform:scale(0.95)}
+.chip.selected{color:var(--gold);border-color:rgba(196,163,90,0.4)}
+.chip.detected{border-color:var(--sage);color:var(--sage)}
+.chip.detected.selected{color:var(--sage);border-color:var(--sage)}
 
-  .chat-header{padding:12px 16px 6px;text-align:center;flex-shrink:0}
-  .greeting{
-    font-size:11px;color:var(--warm);
-    font-family:'JetBrains Mono',monospace;letter-spacing:2px;text-transform:uppercase;
-  }
-  .big-name{
-    font-size:22px;font-weight:700;color:var(--white);
-    text-shadow:0 0 30px var(--warm-glow);
-  }
+.loc-input{
+  width:100%;max-width:260px;padding:8px 14px;margin-bottom:18px;
+  font-family:var(--sans);font-size:12px;font-weight:300;
+  color:var(--stone);background:transparent;
+  border:none;border-bottom:1px solid var(--border);
+  border-radius:0;text-align:center;outline:none;
+  caret-color:var(--gold);transition:border-color .4s;
+}
+.loc-input:focus{border-bottom-color:var(--gold)}
+.loc-input::placeholder{color:rgba(90,85,74,0.6);font-size:11px}
 
-  .signal{
-    margin:6px 16px 0;padding:8px 14px;
-    background:var(--surface);border:1px solid var(--border);
-    border-radius:12px;flex-shrink:0;
-  }
-  .signal-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
-  .signal-title{
-    font-family:'JetBrains Mono',monospace;font-size:9px;
-    color:var(--grey);letter-spacing:2px;text-transform:uppercase;
-  }
-  .signal-pct{
-    font-family:'JetBrains Mono',monospace;font-size:16px;
-    font-weight:700;color:var(--warm);
-  }
-  .signal-bar{width:100%;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
-  .signal-fill{width:0;height:100%;border-radius:2px;background:var(--warm);transition:width .3s}
-  .signal-label{
-    font-family:'JetBrains Mono',monospace;font-size:8px;
-    color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:4px;
-  }
-  .results-count{
-    font-family:'JetBrains Mono',monospace;font-size:9px;
-    color:var(--green);letter-spacing:.5px;margin-top:3px;display:none;
-  }
+.go-btn{
+  width:100%;max-width:260px;padding:13px;
+  font-family:var(--serif);font-size:15px;font-weight:400;
+  font-style:italic;letter-spacing:0.3px;
+  color:var(--void);background:var(--gold);
+  border:none;border-radius:8px;cursor:pointer;
+  transition:all .3s;margin-top:4px;
+}
+.go-btn:active{transform:scale(0.97)}
+.go-btn:disabled{opacity:.25;cursor:default}
+.go-btn.pulse{animation:softPulse 2.5s ease-in-out infinite}
 
-  .chat-area{
-    flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
-    padding:10px 16px;min-height:0;
-  }
+.skip-picks{
+  margin-top:12px;font-size:10px;font-weight:300;
+  color:rgba(90,85,74,0.5);cursor:pointer;
+  border:none;background:none;font-family:var(--sans);
+  letter-spacing:0.8px;transition:color .3s;
+}
+.skip-picks:hover{color:var(--dim)}
 
-  .chat-bubble{
-    padding:10px 14px;margin-bottom:8px;border-radius:14px;
-    max-width:90%;line-height:1.5;font-size:14px;
-    animation:bubbleIn .3s ease both;
-  }
-  .assistant-bubble{
-    background:var(--surface);border:1px solid var(--border);
-    border-top-left-radius:4px;
-  }
-  .user-bubble{
-    background:rgba(245,166,35,0.06);border:1px solid rgba(245,166,35,0.15);
-    margin-left:auto;text-align:right;border-top-right-radius:4px;
-    color:var(--warm);font-size:13px;font-weight:500;max-width:75%;
-  }
-  .error-bubble{
-    background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.2);
-    border-top-left-radius:4px;color:var(--red);font-size:12px;
-  }
+/* ═══════ CHAT ═══════ */
+.chat-view{display:none;flex-direction:column;height:100%}
+.chat-view.active{display:flex;animation:fadeUp .5s ease both}
 
-  .bmark{color:var(--warm);font-size:10px;margin-right:6px}
-  .btxt{color:var(--white)}
-  .btxt .hl{color:var(--warm);font-weight:600}
-  .cur{
-    display:inline-block;width:2px;height:14px;background:var(--warm);
-    vertical-align:middle;margin-left:2px;animation:blink .8s step-end infinite;
-  }
+.chat-header{padding:12px 16px 4px;text-align:center;flex-shrink:0}
+.greeting{
+  font-size:9px;font-weight:400;color:var(--dim);
+  letter-spacing:2.5px;text-transform:uppercase;
+}
+.big-name{
+  font-family:var(--serif);font-size:24px;font-weight:400;
+  color:var(--stone);
+}
 
-  .thinking .dots{display:inline-flex;gap:2px}
-  .thinking .dots span{
-    color:var(--grey);font-size:20px;font-weight:700;
-    animation:dot 1.2s ease-in-out infinite;
-  }
-  .thinking .dots span:nth-child(2){animation-delay:.2s}
-  .thinking .dots span:nth-child(3){animation-delay:.4s}
+.signal{
+  margin:6px 16px 0;padding:8px 14px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;flex-shrink:0;
+}
+.signal-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.signal-title{font-size:9px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase}
+.signal-pct{font-size:15px;font-weight:600;color:var(--gold)}
+.signal-bar{width:100%;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.signal-fill{width:0;height:100%;border-radius:2px;background:var(--gold);transition:width .3s}
+.signal-label{font-size:8px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:4px}
+.results-count{font-size:9px;color:var(--sage);letter-spacing:.3px;margin-top:3px;display:none}
 
-  /* Job cards */
-  .job-cards{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px;animation:bubbleIn .3s ease both}
-  .job-card{
-    display:block;padding:10px 14px;
-    background:var(--surface);border:1px solid var(--border);border-radius:12px;
-    text-decoration:none;color:var(--white);transition:all .2s;
-    -webkit-tap-highlight-color:transparent;
-  }
-  .job-card:hover,.job-card:active{border-color:var(--green);box-shadow:0 0 12px var(--green-glow)}
-  .job-card:active{transform:scale(0.98)}
-  .jc-title{font-size:13px;font-weight:600;color:var(--white);margin-bottom:2px}
-  .jc-org{font-size:11px;color:var(--warm);margin-bottom:1px}
-  .jc-loc{font-size:10px;color:var(--grey)}
-  .jc-salary{font-size:12px;font-weight:600;color:var(--green);margin-top:4px}
-  .jc-meta{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:.3px}
-  .jc-apply{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;color:var(--green);margin-top:5px;letter-spacing:.5px;text-transform:uppercase}
+.chat-area{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:10px 16px;min-height:0;
+}
 
-  /* Featured job */
-  .featured-job{
-    display:block;margin:10px 0;padding:14px 16px;
-    background:linear-gradient(135deg,rgba(52,211,153,.06),rgba(245,166,35,.04));
-    border:2px solid var(--green);border-radius:14px;
-    text-decoration:none;color:var(--white);transition:all .3s;
-    animation:bubbleIn .4s ease both;position:relative;
-    box-shadow:0 0 20px var(--green-glow);
-    -webkit-tap-highlight-color:transparent;
-  }
-  .featured-job:hover,.featured-job:active{box-shadow:0 0 30px rgba(52,211,153,.25);border-color:var(--gold)}
-  .featured-job:active{transform:scale(0.98)}
-  .fj-badge{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
-  .fj-title{font-size:15px;font-weight:700;color:var(--white);margin-bottom:3px}
-  .fj-org{font-size:12px;color:var(--warm);font-weight:500}
-  .fj-dept{font-size:10px;color:var(--grey);margin-bottom:2px}
-  .fj-loc{font-size:11px;color:var(--grey)}
-  .fj-salary{font-size:14px;font-weight:700;color:var(--green);margin-top:6px}
-  .fj-closing{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gold);margin-top:4px;letter-spacing:.3px}
-  .fj-apply{
-    font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;
-    color:var(--bg);background:var(--green);
-    padding:8px 16px;border-radius:8px;margin-top:8px;
-    text-align:center;letter-spacing:1px;text-transform:uppercase;
-    box-shadow:0 0 12px var(--green-glow);
-  }
+.chat-bubble{
+  padding:10px 14px;margin-bottom:8px;border-radius:14px;
+  max-width:88%;line-height:1.6;font-size:14px;
+  animation:bubbleIn .3s ease both;
+}
+.assistant-bubble{
+  background:var(--surface);border:1px solid var(--border);
+  border-top-left-radius:4px;
+}
+.user-bubble{
+  background:rgba(196,163,90,0.04);border:1px solid rgba(196,163,90,0.12);
+  margin-left:auto;text-align:right;border-top-right-radius:4px;
+  color:var(--gold);font-size:13px;font-weight:400;max-width:75%;
+}
+.error-bubble{
+  background:rgba(176,122,122,0.06);border:1px solid rgba(176,122,122,0.2);
+  border-top-left-radius:4px;color:var(--red);font-size:12px;
+}
 
-  /* Footer */
-  .chat-footer{flex-shrink:0;padding:6px 16px 10px;background:linear-gradient(transparent,var(--bg) 20%)}
-  .suggest-row{
-    display:flex;flex-wrap:wrap;gap:5px;justify-content:center;
-    margin-bottom:6px;opacity:0;pointer-events:none;transition:opacity .3s;
-  }
-  .suggest-row.visible{opacity:1;pointer-events:auto}
-  .suggest-chip{
-    padding:6px 12px;font-family:'JetBrains Mono',monospace;
-    font-size:10px;color:var(--grey);background:var(--surface);
-    border:1px solid var(--border);border-radius:16px;cursor:pointer;
-    transition:all .2s;letter-spacing:.3px;
-    -webkit-tap-highlight-color:transparent;
-  }
-  .suggest-chip:hover,.suggest-chip:active{color:var(--warm);border-color:var(--warm)}
-  .suggest-chip:active{transform:scale(0.95)}
+.bmark{
+  display:inline-block;width:6px;height:6px;
+  background:var(--gold);border-radius:50%;
+  margin-right:8px;vertical-align:middle;
+  opacity:0.6;
+}
+.btxt{color:var(--stone)}
+.btxt .hl{color:var(--gold);font-weight:500}
+.cur{
+  display:inline-block;width:1.5px;height:14px;background:var(--gold);
+  vertical-align:middle;margin-left:2px;animation:blink .9s step-end infinite;
+}
 
-  .chat-input-row{display:flex;gap:8px;align-items:center}
-  .chat-input{
-    flex:1;padding:10px 14px;
-    font-family:'Inter',sans-serif;font-size:14px;
-    color:var(--white);background:var(--surface);
-    border:1px solid var(--border);border-radius:12px;outline:none;
-    caret-color:var(--warm);transition:border-color .3s;
-  }
-  .chat-input:focus{border-color:var(--warm);box-shadow:0 0 12px var(--warm-glow)}
-  .chat-input::placeholder{color:var(--dim);font-size:12px}
-  .chat-input:disabled{opacity:.4}
+.thinking .dots{display:inline-flex;gap:3px;margin-left:4px}
+.thinking .dots span{
+  display:inline-block;width:4px;height:4px;border-radius:50%;
+  background:var(--ink);animation:dot 1.4s ease-in-out infinite;
+}
+.thinking .dots span:nth-child(2){animation-delay:.2s}
+.thinking .dots span:nth-child(3){animation-delay:.4s}
 
-  .send-btn{
-    width:42px;height:42px;border-radius:12px;border:none;
-    background:var(--warm);color:var(--bg);font-size:18px;font-weight:700;
-    cursor:pointer;display:flex;align-items:center;justify-content:center;
-    transition:all .2s;flex-shrink:0;
-  }
-  .send-btn:active{transform:scale(0.92)}
-  .send-btn:disabled{opacity:.3;cursor:default}
+/* Job cards */
+.job-cards{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px;animation:bubbleIn .3s ease both}
+.job-card{
+  display:block;padding:10px 14px;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  text-decoration:none;color:var(--stone);transition:all .25s;
+  -webkit-tap-highlight-color:transparent;
+}
+.job-card:hover,.job-card:active{border-color:var(--sage);box-shadow:0 0 12px var(--sage-glow)}
+.job-card:active{transform:scale(0.98)}
+.jc-title{font-size:13px;font-weight:500;color:var(--stone);margin-bottom:2px}
+.jc-org{font-size:11px;color:var(--gold);margin-bottom:1px}
+.jc-loc{font-size:10px;color:var(--ink)}
+.jc-salary{font-size:12px;font-weight:600;color:var(--sage);margin-top:4px}
+.jc-meta{font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:.2px}
+.jc-apply{font-size:9px;font-weight:500;color:var(--sage);margin-top:5px;letter-spacing:.3px;text-transform:uppercase}
 
-  /* CTA */
-  .cta-section{
-    flex-shrink:0;padding:0 16px 10px;text-align:center;
-    opacity:0;pointer-events:none;transition:opacity .5s;
-  }
-  .cta-section.visible{opacity:1;pointer-events:auto}
-  .cta-btn{
-    display:block;width:100%;padding:13px;
-    font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
-    letter-spacing:.5px;text-align:center;text-decoration:none;
-    color:var(--bg);background:var(--green);border:none;border-radius:12px;
-    cursor:pointer;transition:all .3s;
-    box-shadow:0 0 20px var(--green-glow);
-  }
-  .cta-btn:active{transform:scale(0.97)}
-  .cta-btn.hot{animation:btnPulse 2s ease-in-out infinite;font-size:14px;font-weight:700}
-  .cta-fine{
-    font-family:'JetBrains Mono',monospace;font-size:8px;
-    color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:5px;
-  }
+/* Featured job */
+.featured-job{
+  display:block;margin:10px 0;padding:14px 16px;
+  background:linear-gradient(135deg,rgba(106,170,142,.04),rgba(196,163,90,.03));
+  border:1.5px solid var(--sage);border-radius:12px;
+  text-decoration:none;color:var(--stone);transition:all .3s;
+  animation:bubbleIn .4s ease both;
+  box-shadow:0 0 20px var(--sage-glow);
+  -webkit-tap-highlight-color:transparent;
+}
+.featured-job:hover,.featured-job:active{box-shadow:0 0 30px rgba(106,170,142,.18);border-color:var(--gold)}
+.featured-job:active{transform:scale(0.98)}
+.fj-badge{font-size:9px;font-weight:600;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.fj-title{font-size:15px;font-weight:600;color:var(--stone);margin-bottom:3px}
+.fj-org{font-size:12px;color:var(--gold);font-weight:400}
+.fj-dept{font-size:10px;color:var(--ink);margin-bottom:2px}
+.fj-loc{font-size:11px;color:var(--ink)}
+.fj-salary{font-size:14px;font-weight:600;color:var(--sage);margin-top:6px}
+.fj-closing{font-size:9px;color:var(--gold);margin-top:4px;letter-spacing:.2px}
+.fj-apply{
+  font-size:11px;font-weight:600;
+  color:var(--void);background:var(--sage);
+  padding:8px 16px;border-radius:6px;margin-top:8px;
+  text-align:center;letter-spacing:.5px;text-transform:uppercase;
+}
 
-  /* ═══════════════════════════════════════════════ */
-  /* "WHAT IS THIS" TAB                             */
-  /* ═══════════════════════════════════════════════ */
-  .about-screen{
-    padding:24px 20px 60px;max-width:640px;margin:0 auto;
-  }
-  .about-screen h2{
-    font-size:20px;font-weight:600;color:var(--white);
-    margin-top:32px;margin-bottom:12px;line-height:1.3;
-  }
-  .about-screen h2:first-child{margin-top:8px}
-  .about-screen h3{
-    font-size:15px;font-weight:600;color:var(--warm);
-    margin-top:24px;margin-bottom:8px;
-  }
-  .about-screen p{
-    font-size:14px;color:var(--grey);line-height:1.8;
-    margin-bottom:14px;
-  }
-  .about-screen p strong{color:var(--white);font-weight:500}
-  .about-screen p em{color:var(--teal);font-style:normal}
-  .about-screen blockquote{
-    margin:16px 0;padding:14px 18px;
-    border-left:3px solid var(--warm);
-    background:rgba(245,166,35,0.04);
-    border-radius:0 10px 10px 0;
-    font-size:14px;color:var(--grey);line-height:1.7;
-  }
-  .about-screen blockquote cite{
-    display:block;margin-top:8px;font-size:12px;
-    color:var(--dim);font-style:normal;
-  }
-  .about-screen .evidence-card{
-    margin:16px 0;padding:16px;
-    background:var(--surface);border:1px solid var(--border);
-    border-radius:12px;
-  }
-  .about-screen .evidence-card .ec-label{
-    font-family:'JetBrains Mono',monospace;font-size:9px;
-    color:var(--warm);letter-spacing:2px;text-transform:uppercase;
-    margin-bottom:8px;
-  }
-  .about-screen .evidence-card .ec-title{
-    font-size:14px;font-weight:600;color:var(--white);margin-bottom:4px;
-  }
-  .about-screen .evidence-card .ec-detail{
-    font-size:13px;color:var(--grey);line-height:1.6;
-  }
-  .about-screen .evidence-card .ec-result{
-    margin-top:8px;font-size:13px;font-weight:600;color:var(--green);
-  }
-  .about-screen .about-footer{
-    margin-top:40px;padding-top:20px;
-    border-top:1px solid var(--border);
-    text-align:center;
-  }
-  .about-screen .about-footer p{
-    font-size:12px;color:var(--dim);line-height:1.7;
-  }
-  .about-screen a{color:var(--warm);text-decoration:none;border-bottom:1px solid rgba(245,166,35,0.3)}
-  .about-screen a:hover{border-bottom-color:var(--warm)}
+/* Footer */
+.chat-footer{flex-shrink:0;padding:6px 16px 10px;background:linear-gradient(transparent,var(--void) 20%)}
+.suggest-row{
+  display:flex;flex-wrap:wrap;gap:5px;justify-content:center;
+  margin-bottom:6px;opacity:0;pointer-events:none;transition:opacity .3s;
+}
+.suggest-row.visible{opacity:1;pointer-events:auto}
+.suggest-chip{
+  padding:6px 12px;font-family:var(--sans);
+  font-size:10px;color:var(--ink);background:transparent;
+  border:1px solid var(--border);border-radius:14px;cursor:pointer;
+  transition:all .2s;letter-spacing:.2px;
+  -webkit-tap-highlight-color:transparent;
+}
+.suggest-chip:hover,.suggest-chip:active{color:var(--gold);border-color:rgba(196,163,90,0.3)}
+.suggest-chip:active{transform:scale(0.95)}
 
-  /* ───── BG ───── */
-  .mesh{
-    position:fixed;inset:0;pointer-events:none;z-index:0;
-    background:
-      radial-gradient(ellipse at 20% 30%,rgba(245,166,35,.03) 0%,transparent 50%),
-      radial-gradient(ellipse at 80% 70%,rgba(62,207,180,.03) 0%,transparent 50%),
-      radial-gradient(ellipse at 50% 50%,rgba(232,117,138,.02) 0%,transparent 60%);
-  }
+.chat-input-row{display:flex;gap:8px;align-items:center}
+.chat-input{
+  flex:1;padding:10px 14px;
+  font-family:var(--sans);font-size:14px;font-weight:300;
+  color:var(--stone);background:var(--surface);
+  border:1px solid var(--border);border-radius:10px;outline:none;
+  caret-color:var(--gold);transition:border-color .3s;
+}
+.chat-input:focus{border-color:rgba(196,163,90,0.3)}
+.chat-input::placeholder{color:var(--dim);font-size:12px;font-weight:300}
+.chat-input:disabled{opacity:.3}
 
-  /* ───── ANIMATIONS ───── */
-  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes popIn{from{opacity:0;transform:scale(0.6)}to{opacity:1;transform:scale(1)}}
-  @keyframes blink{50%{opacity:0}}
-  @keyframes breatheCircle{
-    0%,100%{transform:translate(-50%,-50%) scale(0.7);opacity:0.3}
-    50%{transform:translate(-50%,-50%) scale(1.3);opacity:0.6}
-  }
-  @keyframes btnPulse{
-    0%,100%{box-shadow:0 0 20px var(--green-glow)}
-    50%{box-shadow:0 0 40px rgba(52,211,153,.3)}
-  }
-  @keyframes bubbleIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes dot{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1.2)}}
-  @keyframes rowClear{
-    0%{opacity:1;transform:scaleX(1)}
-    50%{opacity:0.5;transform:scaleX(1.02)}
-    100%{opacity:0;transform:scaleX(0)}
-  }
+.send-btn{
+  width:40px;height:40px;border-radius:10px;border:1px solid var(--border);
+  background:transparent;color:var(--ink);font-size:16px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;flex-shrink:0;
+}
+.send-btn:active{background:rgba(196,163,90,0.06);color:var(--gold);border-color:rgba(196,163,90,0.3);transform:scale(0.92)}
+.send-btn:disabled{opacity:.2;cursor:default}
 
-  @media(max-height:620px){
-    .landing h1{font-size:18px}
-    .landing .honest{font-size:13px}
-    .game-canvas{max-height:280px}
-    .big-name{font-size:18px}
-    .signal{padding:6px 12px;margin:4px 16px 0}
-    .chat-bubble{padding:8px 12px;font-size:13px;margin-bottom:6px}
-  }
-  @media(min-width:768px){
-    .landing h1{font-size:26px}
-    .about-screen{padding:32px 40px 60px}
-    .about-screen h2{font-size:24px}
-  }
+/* CTA */
+.cta-section{
+  flex-shrink:0;padding:0 16px 10px;text-align:center;
+  opacity:0;pointer-events:none;transition:opacity .5s;
+}
+.cta-section.visible{opacity:1;pointer-events:auto}
+.cta-btn{
+  display:block;width:100%;padding:12px;
+  font-family:var(--sans);font-size:12px;font-weight:500;
+  letter-spacing:.3px;text-align:center;text-decoration:none;
+  color:var(--void);background:var(--sage);border:none;border-radius:8px;
+  cursor:pointer;transition:all .3s;
+}
+.cta-btn:active{transform:scale(0.97)}
+.cta-btn.hot{animation:softPulse 2.5s ease-in-out infinite;font-weight:600}
+.cta-fine{font-size:8px;color:var(--dim);letter-spacing:.8px;text-transform:uppercase;margin-top:5px}
+
+/* ═══════════════════════════════════════════
+   ABOUT — museum exhibition text
+   ═══════════════════════════════════════════ */
+.about{padding:32px 24px 80px;max-width:580px;margin:0 auto}
+
+.about h2{
+  font-family:var(--serif);font-size:24px;font-weight:400;
+  color:var(--stone);margin-top:44px;margin-bottom:16px;
+  line-height:1.3;letter-spacing:-0.2px;
+}
+.about h2:first-child{margin-top:12px}
+
+.about h3{
+  font-family:var(--serif);font-size:17px;font-weight:400;
+  font-style:italic;color:var(--gold);
+  margin-top:32px;margin-bottom:12px;
+}
+
+.about p{
+  font-family:var(--sans);font-size:14px;font-weight:300;
+  color:var(--ink);line-height:1.85;margin-bottom:16px;
+  letter-spacing:0.1px;
+}
+.about p strong{color:var(--stone);font-weight:400}
+
+.about .lead{
+  font-family:var(--serif);font-size:17px;font-weight:300;
+  font-style:italic;color:var(--ink);line-height:1.7;
+}
+
+/* Separator */
+.about .sep{
+  width:32px;height:1px;background:var(--border);
+  margin:36px auto;
+}
+
+/* Tooltipped citations */
+.cite{
+  color:var(--stone);font-weight:400;
+  border-bottom:1px dotted var(--gold);
+  cursor:help;transition:border-color .2s;
+}
+.cite:hover{border-bottom-color:var(--stone)}
+
+/* Citation bottom sheet */
+.cite-sheet{
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  transform:translateY(100%);
+  transition:transform .35s cubic-bezier(0.4,0,0.2,1);
+  padding:20px 24px 28px;max-width:580px;margin:0 auto;
+  background:var(--surface);
+  border:1px solid var(--border);border-bottom:none;
+  border-radius:14px 14px 0 0;
+  box-shadow:0 -8px 40px rgba(0,0,0,0.3);
+}
+.cite-sheet.vis{transform:translateY(0)}
+.cite-sheet-dismiss{
+  position:absolute;top:12px;right:16px;
+  font-size:11px;color:var(--dim);background:none;border:none;
+  cursor:pointer;font-family:var(--sans);letter-spacing:0.5px;
+}
+.cite-sheet-label{
+  font-size:9px;color:var(--dim);letter-spacing:2px;
+  text-transform:uppercase;margin-bottom:8px;
+}
+.cite-sheet-title{
+  font-family:var(--serif);font-size:16px;font-weight:400;
+  color:var(--stone);margin-bottom:6px;line-height:1.4;
+}
+.cite-sheet-text{
+  font-size:13px;font-weight:300;color:var(--ink);
+  line-height:1.7;
+}
+
+/* Evidence blocks */
+.evidence{
+  margin:20px 0;padding:16px 18px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;
+}
+.ev-label{font-size:9px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
+.ev-title{font-family:var(--serif);font-size:15px;font-weight:400;color:var(--stone);margin-bottom:6px}
+.ev-detail{font-size:13px;font-weight:300;color:var(--ink);line-height:1.7}
+.ev-result{margin-top:8px;font-size:13px;font-weight:400;color:var(--sage)}
+
+.about blockquote{
+  margin:20px 0;padding:16px 20px;
+  border-left:2px solid rgba(196,163,90,0.3);
+  font-family:var(--serif);font-size:16px;font-weight:300;
+  font-style:italic;color:var(--ink);line-height:1.7;
+}
+
+/* Mechanism list */
+.mechanism{margin:20px 0}
+.mechanism .mech-num{
+  font-family:var(--serif);font-size:13px;font-weight:400;
+  color:var(--gold);margin-bottom:4px;letter-spacing:0.5px;
+}
+.mechanism .mech-title{
+  font-family:var(--serif);font-size:16px;font-weight:400;
+  color:var(--stone);margin-bottom:6px;
+}
+.mechanism .mech-text{
+  font-size:13px;font-weight:300;color:var(--ink);line-height:1.7;
+}
+
+/* Support section */
+.support-box{
+  margin:24px 0;padding:16px 18px;
+  border:1px solid var(--border);border-radius:10px;
+  text-align:center;
+}
+.support-box .sb-num{
+  font-family:var(--serif);font-size:32px;font-weight:400;
+  color:var(--gold);margin-bottom:4px;letter-spacing:2px;
+}
+.support-box .sb-label{
+  font-size:11px;font-weight:300;color:var(--ink);
+  line-height:1.6;
+}
+
+.about .refs{margin-top:40px;padding-top:20px;border-top:1px solid var(--border)}
+.about .refs h3{color:var(--dim);font-size:13px;font-style:normal;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+.about .refs p{font-size:11px;color:var(--dim);line-height:1.8;margin-bottom:4px}
+
+.about .colophon{
+  margin-top:36px;text-align:center;
+  font-size:11px;color:var(--dim);line-height:1.8;
+}
+
+/* ═══════ ANIMATIONS ═══════ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{50%{opacity:0}}
+@keyframes dot{0%,80%,100%{opacity:.15;transform:scale(.7)}40%{opacity:.8;transform:scale(1.1)}}
+@keyframes bubbleIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes softPulse{0%,100%{opacity:1}50%{opacity:.75}}
+
+/* ═══════ REDUCED MOTION ═══════ */
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:0.01ms !important;transition-duration:0.01ms !important}
+  .r,.enso,.begin,.skip{opacity:1 !important;transform:none !important}
+}
+
+/* ═══════ RESPONSIVE ═══════ */
+@media(max-height:640px){
+  .r1{font-size:22px;margin-bottom:24px}
+  .r2,.r3{font-size:15px}
+  .r5{font-size:17px;margin-bottom:28px}
+  .game-canvas{max-height:260px}
+  .ctrl{width:48px;height:48px}
+  .controls{gap:18px}
+}
+@media(min-width:768px){
+  .about{padding:40px 48px 80px}
+  .about h2{font-size:28px}
+  .r1{font-size:34px}
+  .controls{gap:32px}
+  .ctrl{width:60px;height:60px}
+}
 </style>
 </head>
 <body>
 
-<div class="mesh"></div>
-
 <div class="app">
 
   <!-- TAB BAR -->
-  <div class="tab-bar">
-    <button class="tab active" id="tabSearch" data-tab="search">Search</button>
-    <button class="tab" id="tabAbout" data-tab="about">What is this?</button>
-  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="search">Search</button>
+    <button class="tab" data-tab="about">What is this?</button>
+  </nav>
 
-  <!-- ════════════════════════════════════════════════ -->
-  <!-- SEARCH SCREEN                                    -->
-  <!-- ════════════════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════════════
+       SEARCH SCREEN
+       ═══════════════════════════════════════════ -->
   <div class="screen" id="screenSearch">
 
-    <!-- Stage 0: Honest Landing -->
+    <!-- Landing -->
     <div class="landing" id="stageLanding">
-      <div class="landing-icon">&#x1F9D8;</div>
-      <h1>Job boards are broken.<br>We know. <em>You</em> know.</h1>
-      <p class="honest">
-        The endless scroll. The ghost postings. The silence after you apply.
-        <strong>It's exhausting, and it takes a real toll.</strong>
-        We're not going to pretend otherwise.
-      </p>
-      <div class="offer">
-        Before you search, we'd like to offer you something small but real:
-        <strong>15 seconds to clear the noise.</strong>
-        A simple game backed by neuroscience research. No tricks. No data collection.
-        Just a moment that's yours.
-      </div>
-      <button class="begin-btn" id="beginBtn">Take a moment</button>
-      <button class="skip-link" id="skipToSearch">skip to search &rarr;</button>
+
+      <svg class="enso" id="enso" viewBox="0 0 100 100" aria-hidden="true">
+        <path class="enso-path" d="M 58 8 C 78 6, 96 24, 96 48 C 96 74, 76 96, 50 96 C 24 96, 4 74, 4 48 C 4 24, 22 8, 44 6" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+
+      <p class="r r1" id="r1">Pause.</p>
+
+      <p class="r r2" id="r2">You came here looking for work.</p>
+      <p class="r r3" id="r3">Before you begin, we want to offer you something.</p>
+
+      <p class="r r4" id="r4">Not a pitch. Not a trick. Not a sales funnel.</p>
+
+      <p class="r r5" id="r5">A moment of quiet.</p>
+
+      <button class="begin" id="beginBtn">take a moment</button>
+      <button class="skip" id="skipBtn">skip to search</button>
+
     </div>
 
-    <!-- Stage 1: The Game -->
-    <div class="game-stage hidden" id="stageGame">
-      <div class="breath-guide" id="breathGuide"><em>breathe in</em></div>
-      <div class="game-wrap">
-        <canvas class="game-canvas" id="gameCanvas" width="200" height="320"></canvas>
-        <div class="breath-circle"></div>
+    <!-- Game -->
+    <div class="game" id="stageGame">
+      <div class="breath-hint" id="breathHint">breathe in</div>
+
+      <div class="game-board" id="gameBoard">
+        <canvas class="game-canvas" id="gameCanvas"></canvas>
         <div class="game-word" id="gameWord"></div>
+        <div class="game-overlay" id="gameOverlay">
+          <p class="ov-line">How do you feel?</p>
+          <div class="ov-actions">
+            <button class="ov-btn" id="keepPlayingBtn">keep playing</button>
+            <button class="ov-btn primary" id="readyBtn">I'm ready</button>
+          </div>
+        </div>
       </div>
-      <div class="game-timer"><div class="game-timer-fill" id="gameTimerFill"></div></div>
-      <div class="game-message" id="gameMessage">Use arrow keys or tap the sides to guide blocks</div>
+
+      <div class="timer-track" id="timerTrack"><div class="timer-fill" id="timerFill"></div></div>
+
+      <div class="controls">
+        <button class="ctrl" id="ctrlLeft" aria-label="Move left">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="ctrl" id="ctrlRotate" aria-label="Rotate">
+          <svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
+        <button class="ctrl" id="ctrlRight" aria-label="Move right">
+          <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
     </div>
 
-    <!-- Stage 1.5: Transition -->
-    <div class="transition-stage hidden" id="stageTransition">
-      <div class="check">&#x2728;</div>
-      <h2>Nice. You showed up for yourself.</h2>
-      <p>That took 15 seconds. Research says even that small a pause can interrupt the stress loop. Now let's find you something real.</p>
-      <button class="ready-btn" id="readyBtn">Search federal jobs &rarr;</button>
-    </div>
-
-    <!-- Stage 2: Search -->
-    <div class="search-stage hidden" id="stageSearch">
+    <!-- Search -->
+    <div class="search" id="stageSearch">
 
       <!-- Picks -->
       <div class="picks" id="picksView">
-        <div class="picks-prompt">
-          Almost there &mdash;<br><em>What's your name?</em>
-        </div>
+        <p class="picks-prompt">What shall we call you?</p>
         <input class="name-input" id="nameInput" type="text"
           placeholder="your name" maxlength="20"
           autocomplete="off" autocapitalize="words" spellcheck="false">
@@ -656,11 +762,11 @@
           <button class="chip" data-value="Anywhere">Anywhere</button>
         </div>
         <input class="loc-input" id="locationInput" type="text"
-          placeholder="or type your city / state"
+          placeholder="or type a city"
           maxlength="40" autocomplete="off" spellcheck="false">
 
-        <button class="go-btn" id="goBtn" disabled>Find my match &rarr;</button>
-        <button class="skip-picks" id="skipBtn">skip &rarr;</button>
+        <button class="go-btn" id="goBtn" disabled>find my match</button>
+        <button class="skip-picks" id="skipPicks">skip</button>
       </div>
 
       <!-- Chat -->
@@ -669,7 +775,6 @@
           <div class="greeting">searching for</div>
           <div class="big-name" id="bigName"></div>
         </div>
-
         <div class="signal">
           <div class="signal-top">
             <span class="signal-title">match signal</span>
@@ -679,9 +784,7 @@
           <div class="signal-label" id="signalLabel">initializing</div>
           <div class="results-count" id="resultsCount"></div>
         </div>
-
         <div class="chat-area" id="chatArea"></div>
-
         <div class="chat-footer">
           <div class="suggest-row" id="suggestRow"></div>
           <div class="chat-input-row">
@@ -691,208 +794,256 @@
             <button class="send-btn" id="chatSend" disabled>&#x2191;</button>
           </div>
         </div>
-
         <div class="cta-section" id="ctaSection">
-          <button class="cta-btn" id="ctaBtn">Search USAJobs.gov &rarr;</button>
-          <div class="cta-fine" id="ctaFine">real federal positions &middot; verified &middot; USAJobs.gov</div>
+          <button class="cta-btn" id="ctaBtn">Search USAJobs.gov</button>
+          <div class="cta-fine" id="ctaFine">verified federal positions</div>
         </div>
       </div>
 
     </div>
   </div>
 
-  <!-- ════════════════════════════════════════════════ -->
-  <!-- "WHAT IS THIS" SCREEN                            -->
-  <!-- ════════════════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════════════
+       ABOUT SCREEN — exhibition text
+       ═══════════════════════════════════════════ -->
   <div class="screen hidden" id="screenAbout">
-    <div class="about-screen">
+    <div class="about">
 
-      <h2>Why a job board just asked you to play a game</h2>
-      <p>
-        You came here to search for a job. We asked you to pause first.
-        That might seem strange. Here's why we did it, and why the science says it matters.
+      <h2>Why a job board asked you to pause</h2>
+
+      <p class="lead">
+        You came here to search for a job. We asked you to play a game first.
+        That was intentional. Here is why.
       </p>
 
-      <h2>The problem we're trying to solve</h2>
-      <p>
-        <strong>Job searching is one of the most stressful experiences in modern life.</strong>
-        It combines uncertainty, rejection, financial pressure, and identity threat into a single
-        sustained activity. Studies link prolonged unemployment and job searching to
-        increased rates of depression, anxiety, and suicidal ideation.
-      </p>
-      <p>
-        Traditional job boards do nothing about this. They optimize for clicks and
-        applications — not for the human being sitting at the screen. We wanted to try
-        something different.
-      </p>
+      <div class="sep"></div>
 
-      <h2>The idea: micro-interventions at the moment of need</h2>
-      <p>
-        In 2024, former NIMH Director <strong>Dr. Thomas Insel</strong> wrote about a
-        powerful but underappreciated pattern in mental health research: <em>tiny
-        interventions, delivered at the right moment, can produce outsized effects on
-        millions of people.</em>
-      </p>
-
-      <blockquote>
-        "Small interventions can interrupt destructive patterns before they settle into place."
-        <cite>&mdash; Thomas Insel, "A Video Game, a Postcard, and a Grandmother"</cite>
-      </blockquote>
+      <h2>The weight of searching</h2>
 
       <p>
-        Insel documented a series of studies showing that brief, simple, and scalable
-        encounters — some lasting only minutes — produced clinical outcomes that rival
-        or exceed expensive, long-term treatments. The key insight: <strong>timing and
-        context matter more than duration.</strong>
+        Job searching is one of the most psychologically taxing routine
+        activities in modern life. It combines uncertainty, rejection,
+        financial pressure, and threats to identity into a single sustained
+        experience.
+      </p>
+      <p>
+        The mental health consequences are well-documented. Prolonged job
+        searching is associated with increased rates of
+        <span class="cite" data-title="Unemployment and Mental Health" data-cite="Paul, K. I. &amp; Moser, K. (2009). Unemployment impairs mental health: Meta-analyses. Journal of Vocational Behavior, 74(3), 264&ndash;282.">depression and anxiety</span>,
+        and in severe cases,
+        <span class="cite" data-title="Unemployment and Suicide" data-cite="Milner, A., Page, A., &amp; LaMontagne, A. D. (2013). Long-term unemployment and suicide: A systematic review and meta-analysis. PLoS ONE, 8(1), e51333.">suicidal ideation</span>.
+      </p>
+      <p>
+        Most job boards ignore this entirely. They optimize for clicks and
+        applications &mdash; not for the person sitting at the screen.
       </p>
 
-      <h3>The evidence base</h3>
+      <div class="sep"></div>
 
-      <div class="evidence-card">
-        <div class="ec-label">Study 1 &middot; The Lancet Psychiatry</div>
-        <div class="ec-title">Tetris and Trauma Recovery</div>
-        <div class="ec-detail">
-          A randomized controlled trial found that playing Tetris for 20 minutes
-          while recalling traumatic memories reduced intrusive thoughts by approximately 70%
-          compared to control groups. The mechanism: visual-spatial engagement competes with
-          the brain's ability to replay distressing imagery. The game literally blocks
-          the rumination loop.
+      <h2>Small moments, measured impact</h2>
+
+      <p>
+        Over the past decade, researchers have documented a striking and
+        counterintuitive pattern:
+        <strong><span class="cite" data-title="Single-Session Interventions" data-cite="Schleider, J. L. &amp; Weisz, J. R. (2017). Little treatments, surprisingly big effects: A meta-analysis of single-session interventions for youth mental health. Journal of Child Psychology and Psychiatry, 58(6), 685&ndash;695.">brief interventions</span>,
+        sometimes lasting only minutes, can produce measurable and lasting
+        improvements</strong> when delivered at the right moment through
+        the right channel.
+      </p>
+      <p>
+        The pattern appears across populations, settings, and intervention
+        types. What they share is a principle:
+        <strong>timing and context matter more than dose.</strong>
+      </p>
+
+      <h3>The evidence</h3>
+
+      <div class="evidence">
+        <div class="ev-label">Randomized controlled trial</div>
+        <div class="ev-title">Visual-spatial games and intrusive memories</div>
+        <div class="ev-detail">
+          Playing Tetris while recalling distressing events significantly
+          reduced
+          <span class="cite" data-title="Tetris and Intrusive Memories" data-cite="Iyadurai, L. et al. (2018). Preventing intrusive memories after trauma via a brief intervention involving Tetris computer game play in the emergency department. Molecular Psychiatry, 23, 674&ndash;682. Also: Holmes, E. A. et al. (2025). Reducing healthcare workers' intrusive memories of COVID-19. The Lancet Psychiatry.">intrusive memories</span>
+          compared to control conditions. The mechanism:
+          <span class="cite" data-title="Visuospatial Processing" data-cite="Holmes, E. A. et al. (2009). Can playing the computer game 'Tetris' reduce the build-up of flashbacks for trauma? PLoS ONE, 4(1), e4153.">visual-spatial processing</span>
+          competes with the brain's ability to consolidate and replay
+          distressing imagery.
         </div>
-        <div class="ec-result">Result: ~70% reduction in intrusive thoughts</div>
+        <div class="ev-result">~70% reduction in intrusive memories at 4-week follow-up</div>
       </div>
 
-      <div class="evidence-card">
-        <div class="ec-label">Study 2 &middot; Shandong University</div>
-        <div class="ec-title">Hearing Aids and Depression</div>
-        <div class="ec-detail">
-          Providing hearing aids to older adults with hearing loss produced mood improvements
-          "surpassing anything" documented in antidepressant medication studies. A simple
-          correction of sensory isolation was more powerful than pharmacology.
+      <div class="evidence">
+        <div class="ev-label">JAMA &middot; Randomized trial</div>
+        <div class="ev-title">Community-delivered therapy on a bench</div>
+        <div class="ev-detail">
+          In Zimbabwe, trained
+          <span class="cite" data-title="The Friendship Bench" data-cite="Chibanda, D. et al. (2016). Effect of a primary care-based psychological intervention on symptoms of common mental disorders in Zimbabwe: A randomized clinical trial. JAMA, 316(24), 2618&ndash;2626.">lay health workers</span>
+          &mdash; grandmothers &mdash; delivered structured problem-solving
+          therapy on wooden benches outside clinics. No prescriptions. No
+          clinical settings. Significant reductions in depression and anxiety.
         </div>
-        <div class="ec-result">Result: Mood improvement exceeding antidepressant benchmarks</div>
+        <div class="ev-result">Significant reductions in common mental disorders</div>
       </div>
 
-      <div class="evidence-card">
-        <div class="ec-label">Study 3 &middot; 80,000+ participants</div>
-        <div class="ec-title">Digital Hypnosis and Stress</div>
-        <div class="ec-detail">
-          A single app-delivered hypnosis session significantly reduced stress across a
-          massive sample. One session. One app. Measurable change.
+      <div class="evidence">
+        <div class="ev-label">Psychiatric Services &middot; Longitudinal</div>
+        <div class="ev-title">Caring letters and suicide prevention</div>
+        <div class="ev-detail">
+          Periodic
+          <span class="cite" data-title="Caring Letters" data-cite="Motto, J. A. &amp; Bostrom, A. G. (2001). A randomized controlled trial of postcrisis suicide prevention. Psychiatric Services, 52(6), 828&ndash;833.">brief check-in letters</span>
+          sent to people discharged after suicidal crisis reduced
+          suicide rates over a five-year follow-up period. The intervention:
+          a postcard. The cost: a stamp.
         </div>
-        <div class="ec-result">Result: Significant stress reduction from a single session</div>
+        <div class="ev-result">Measurable reduction in suicide rates across 5 years</div>
       </div>
 
-      <div class="evidence-card">
-        <div class="ec-label">Study 4 &middot; JAMA &middot; Randomized Trial</div>
-        <div class="ec-title">The Friendship Bench (Zimbabwe)</div>
-        <div class="ec-detail">
-          Trained grandmothers delivering structured problem-solving therapy on wooden benches
-          in community settings achieved profound reductions in depression and anxiety.
-          No clinics. No prescriptions. Grandmothers on benches, listening and guiding.
+      <div class="evidence">
+        <div class="ev-label">80,000+ participants</div>
+        <div class="ev-title">A single session of guided relaxation</div>
+        <div class="ev-detail">
+          One
+          <span class="cite" data-title="Self-Hypnosis and Stress" data-cite="Spiegel, D. et al. (2025). Digital self-hypnosis intervention for stress: Results from a large-scale study. Nature.">app-delivered session</span>
+          significantly reduced self-reported stress
+          across a massive sample. One session. One app.
         </div>
-        <div class="ec-result">Result: Profound reductions in depression and anxiety</div>
+        <div class="ev-result">Significant stress reduction from a single session</div>
       </div>
 
-      <div class="evidence-card">
-        <div class="ec-label">Study 5 &middot; Decades of follow-up</div>
-        <div class="ec-title">Postcards and Suicide Prevention</div>
-        <div class="ec-detail">
-          Psychiatrist Jerome Motto found that sending periodic check-in postcards —
-          simple "thinking of you" notes — to people who had been hospitalized for
-          suicidal ideation measurably reduced subsequent suicide rates. The cost:
-          a stamp and five seconds of someone's time.
+      <div class="evidence">
+        <div class="ev-label">Nature &middot; 2025</div>
+        <div class="ev-title">Restoring sensory connection</div>
+        <div class="ev-detail">
+          Providing
+          <span class="cite" data-title="Hearing Aids and Depression" data-cite="Wang, J. et al. (2025). Hearing aid use and depression in older adults. Nature.">hearing aids</span>
+          to older adults with hearing loss produced mood improvements
+          exceeding benchmarks from antidepressant medication studies. A
+          simple correction of isolation was more powerful than pharmacology.
         </div>
-        <div class="ec-result">Result: Measurable reduction in suicide rates</div>
+        <div class="ev-result">Mood improvement exceeding antidepressant benchmarks</div>
       </div>
 
-      <div class="evidence-card">
-        <div class="ec-label">Research Program &middot; Jessica Schleider, PhD</div>
-        <div class="ec-title">"Little Treatments, Big Effects"</div>
-        <div class="ec-detail">
-          Psychologist Jessica Schleider has built an entire research program around
-          "micro-interventions" — brief digital exercises designed to shift thinking
-          patterns. Her work, documented in her book <em>Little Treatments, Big Effects</em>,
-          shows that single-session interventions can produce lasting change in youth mental health.
-        </div>
-        <div class="ec-result">Result: Lasting change from single-session digital interventions</div>
-      </div>
+      <div class="sep"></div>
 
-      <h2>What we built and why</h2>
+      <h2>What the game does</h2>
+
       <p>
-        The 15-second game you just played (or were offered) combines three evidence-based
-        mechanisms into a single micro-intervention:
-      </p>
-      <p>
-        <strong>1. Visual-spatial engagement</strong> (the Tetris principle). Guiding falling
-        blocks demands just enough cognitive attention to interrupt the anxiety loop — the
-        racing thoughts about rejections, deadlines, and bills that build up during a job search.
-      </p>
-      <p>
-        <strong>2. Paced breathing</strong>. The blocks fall at a rhythm synchronized to a
-        calm breathing pattern: 4 seconds in, 4 seconds out. Controlled breathing is one of
-        the most robust findings in stress physiology — it activates the parasympathetic
-        nervous system and reduces cortisol within minutes.
-      </p>
-      <p>
-        <strong>3. Brief positive messaging</strong> (the postcard principle). As rows
-        complete, gentle words appear: "breathe," "you're here," "you matter." These aren't
-        platitudes — they're calibrated micro-affirmations delivered at a moment of
-        accomplishment within the game, anchoring a small positive association.
+        The brief game offered before your search combines three
+        mechanisms from the research above into a single micro-intervention.
       </p>
 
-      <h2>Why a job board?</h2>
+      <div class="mechanism">
+        <div class="mech-num">i</div>
+        <div class="mech-title">Visual-spatial engagement</div>
+        <div class="mech-text">
+          Guiding falling blocks requires
+          <span class="cite" data-title="Visuospatial Working Memory" data-cite="Holmes, E. A. et al. (2009). Can playing the computer game 'Tetris' reduce the build-up of flashbacks for trauma? A proposal from cognitive science. PLoS ONE, 4(1), e4153.">visuospatial working memory</span>
+          &mdash; the same cognitive resource the brain uses to replay anxious
+          scenarios. When that resource is occupied, the rumination loop is
+          temporarily interrupted.
+        </div>
+      </div>
+
+      <div class="mechanism">
+        <div class="mech-num">ii</div>
+        <div class="mech-title">Paced breathing</div>
+        <div class="mech-text">
+          The game's rhythm is synchronized to a calm breathing pattern.
+          <span class="cite" data-title="Breathing and Autonomic Function" data-cite="Zaccaro, A. et al. (2018). How breath-control can change your life: A systematic review on psycho-physiological correlates of slow breathing. Frontiers in Human Neuroscience, 12, 353.">Controlled breathing</span>
+          activates the parasympathetic nervous system, reducing cortisol
+          and heart rate within minutes. You may not have noticed. That's
+          by design.
+        </div>
+      </div>
+
+      <div class="mechanism">
+        <div class="mech-num">iii</div>
+        <div class="mech-title">Brief positive anchoring</div>
+        <div class="mech-text">
+          Words that appear during gameplay are
+          <span class="cite" data-title="Wise Interventions" data-cite="Walton, G. M. (2014). The new science of wise psychological interventions. Current Directions in Psychological Science, 23(1), 73&ndash;82.">micro-affirmations</span>
+          delivered at a moment of small accomplishment &mdash; anchoring a
+          positive association at the point of action. This mirrors the
+          mechanism by which caring letters reduce crisis recurrence.
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <h2>Why here</h2>
+
       <p>
         <strong>Because this is where people are when they need it most.</strong>
       </p>
       <p>
-        The entire insight of Insel's analysis is that interventions work best when delivered
-        at the moment of need, through channels people are already using. A job board is a
-        point of maximum stress for a vulnerable population. Every person who lands on this
-        page is, by definition, in a moment of transition, uncertainty, and often distress.
+        The core insight from
+        <span class="cite" data-title="Micro-Intervention Research" data-cite="Schleider, J. L. (2024). Little Treatments, Big Effects. Oxford University Press. See also: Schleider, J. L. et al. (2020). A randomized trial of online single-session interventions for adolescent depression during COVID-19. Nature Human Behaviour, 4, 602&ndash;609.">micro-intervention research</span>
+        is that interventions work best when delivered at the moment of need,
+        through channels people are already using. A job board is a point of
+        convergence for a population under active psychological strain.
       </p>
       <p>
-        We're not a therapy app. We're not claiming to treat depression. We're saying:
-        <em>if a postcard can reduce suicide rates, and Tetris can reduce trauma flashbacks,
-        then maybe a 15-second pause before a job search can make the difference between
-        someone who spirals and someone who takes a breath and keeps going.</em>
+        We are not a therapy app. We do not diagnose or treat clinical
+        conditions. We are saying something simpler: if a postcard can
+        measurably reduce suicide risk, a brief pause before a job search
+        might matter more than it seems.
       </p>
 
-      <h2>What we don't do</h2>
+      <div class="sep"></div>
+
+      <h2>Your data</h2>
       <p>
-        We don't collect data about your mental health. We don't track your game performance.
-        We don't sell your information. We don't claim this replaces professional help.
-        The game is entirely client-side — it runs in your browser and nothing is sent anywhere.
-      </p>
-      <p>
-        If you're in crisis, please contact the <strong>988 Suicide & Crisis Lifeline</strong>
-        by calling or texting <strong>988</strong>. It's free, confidential, and available 24/7.
+        The game runs entirely in your browser. No gameplay data is
+        collected, transmitted, or stored. No mental health information is
+        inferred or recorded. The job search uses the same public federal
+        jobs API as USAJobs.gov.
       </p>
 
-      <h2>The bigger picture</h2>
-      <p>
-        This is an experiment in what happens when technology takes the side of the person
-        using it. Not the advertiser. Not the employer. Not the platform.
-        <strong>You.</strong>
-      </p>
-      <p>
-        Insel's argument is that the next frontier in mental health isn't just better
-        medications or better therapies — it's <em>better delivery</em>. Scalable
-        interventions pushed through digital channels to millions of people at the exact
-        moment they need them. A video game, a postcard, a grandmother on a bench.
-      </p>
-      <p>
-        This is a job board that took that idea seriously. That's all.
+      <div class="sep"></div>
+
+      <h2>If you need support</h2>
+
+      <div class="support-box">
+        <div class="sb-num">988</div>
+        <div class="sb-label">
+          Suicide &amp; Crisis Lifeline<br>
+          Call or text. Free. Confidential. 24/7.
+        </div>
+      </div>
+      <p style="text-align:center">
+        Crisis Text Line: text HOME to 741741<br>
+        SAMHSA National Helpline: 1-800-662-4357
       </p>
 
-      <div class="about-footer">
-        <p>
-          Built with care. Powered by Claude (Anthropic). Federal job data from USAJobs.gov.<br>
-          Inspired by Thomas Insel's "A Video Game, a Postcard, and a Grandmother."<br>
-          Research: Schleider et al., Iyadurai et al. (Lancet Psychiatry), Motto & Bostrom.
-        </p>
+      <div class="refs">
+        <h3>References</h3>
+        <p>Chibanda, D. et al. (2016). Effect of a primary care-based psychological intervention on symptoms of common mental disorders in Zimbabwe. <em>JAMA</em>, 316(24), 2618&ndash;2626.</p>
+        <p>Holmes, E. A. et al. (2009). Can playing the computer game &lsquo;Tetris&rsquo; reduce the build-up of flashbacks for trauma? <em>PLoS ONE</em>, 4(1), e4153.</p>
+        <p>Holmes, E. A. et al. (2025). Reducing healthcare workers&rsquo; intrusive memories of COVID-19 with a brief imagery-competing task intervention. <em>The Lancet Psychiatry</em>.</p>
+        <p>Iyadurai, L. et al. (2018). Preventing intrusive memories after trauma via a brief intervention involving Tetris. <em>Molecular Psychiatry</em>, 23, 674&ndash;682.</p>
+        <p>Milner, A., Page, A., &amp; LaMontagne, A. D. (2013). Long-term unemployment and suicide. <em>PLoS ONE</em>, 8(1), e51333.</p>
+        <p>Motto, J. A. &amp; Bostrom, A. G. (2001). A randomized controlled trial of postcrisis suicide prevention. <em>Psychiatric Services</em>, 52(6), 828&ndash;833.</p>
+        <p>Paul, K. I. &amp; Moser, K. (2009). Unemployment impairs mental health: Meta-analyses. <em>Journal of Vocational Behavior</em>, 74(3), 264&ndash;282.</p>
+        <p>Schleider, J. L. &amp; Weisz, J. R. (2017). Little treatments, surprisingly big effects. <em>Journal of Child Psychology and Psychiatry</em>, 58(6), 685&ndash;695.</p>
+        <p>Walton, G. M. (2014). The new science of wise psychological interventions. <em>Current Directions in Psychological Science</em>, 23(1), 73&ndash;82.</p>
+        <p>Zaccaro, A. et al. (2018). How breath-control can change your life. <em>Frontiers in Human Neuroscience</em>, 12, 353.</p>
+      </div>
+
+      <div class="colophon">
+        Built with care. Federal job data from USAJobs.gov.<br>
+        Powered by Claude (Anthropic).
       </div>
 
     </div>
+  </div>
+
+  <!-- Citation bottom sheet -->
+  <div class="cite-sheet" id="citeSheet">
+    <button class="cite-sheet-dismiss" id="citeDismiss">close</button>
+    <div class="cite-sheet-label">source</div>
+    <div class="cite-sheet-title" id="citeTitle"></div>
+    <div class="cite-sheet-text" id="citeText"></div>
   </div>
 
 </div>
