@@ -149,6 +149,43 @@ html,body{
 .landing.exiting{opacity:0;transition:opacity 1s ease}
 
 /* ═══════════════════════════════════════════
+   BREATH — single guided breath
+   ═══════════════════════════════════════════ */
+.breath-stage{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;
+  padding:40px 32px;
+  opacity:0;pointer-events:none;
+  transition:opacity .8s ease;
+}
+.breath-stage.active{opacity:1;pointer-events:auto}
+
+.breath-guide{
+  width:100px;height:100px;border-radius:50%;
+  border:1.5px solid var(--sage);
+  opacity:0.4;
+  transform:scale(0.5);
+  margin-bottom:32px;
+}
+.breath-guide.expanding{
+  transform:scale(1);opacity:0.85;
+  transition:transform 4s cubic-bezier(0.4,0,0.2,1), opacity 4s ease;
+}
+.breath-guide.contracting{
+  transform:scale(0.5);opacity:0.3;
+  transition:transform 4.5s cubic-bezier(0.4,0,0.2,1), opacity 4.5s ease;
+}
+
+.breath-text{
+  font-family:var(--serif);font-size:20px;font-weight:300;
+  font-style:italic;color:var(--ink);letter-spacing:0.3px;
+  line-height:1.5;
+  opacity:0;transition:opacity 1s ease;
+}
+.breath-text.vis{opacity:1}
+
+/* ═══════════════════════════════════════════
    GAME — meditative Tetris
    ═══════════════════════════════════════════ */
 .game{
@@ -269,6 +306,18 @@ html,body{
 .ov-btn:hover,.ov-btn:active{color:var(--gold);border-color:rgba(196,163,90,0.4)}
 .ov-btn.primary{color:var(--gold);border-color:rgba(196,163,90,0.4)}
 .ov-btn.primary:hover,.ov-btn.primary:active{color:var(--stone);border-color:var(--gold)}
+
+/* Free-play escape */
+.freeplay-exit{
+  font-family:var(--serif);font-size:12px;font-weight:300;
+  font-style:italic;color:var(--dim);background:none;
+  border:none;cursor:pointer;margin-top:12px;
+  letter-spacing:0.3px;
+  opacity:0;pointer-events:none;
+  transition:opacity .5s ease, color .3s;
+}
+.freeplay-exit.vis{opacity:1;pointer-events:auto}
+.freeplay-exit:hover{color:var(--gold)}
 
 /* ═══════════════════════════════════════════
    SEARCH — picks + chat
@@ -724,6 +773,12 @@ html,body{
 
     </div>
 
+    <!-- Guided breath -->
+    <div class="breath-stage" id="stageBreath">
+      <div class="breath-guide" id="breathGuide"></div>
+      <div class="breath-text" id="breathText"></div>
+    </div>
+
     <!-- Game -->
     <div class="game" id="stageGame">
       <div class="breath-wrap" id="breathWrap">
@@ -759,6 +814,7 @@ html,body{
           <svg viewBox="0 0 24 24"><polyline points="7 13 12 18 17 13"/><line x1="12" y1="6" x2="12" y2="18"/></svg>
         </button>
       </div>
+      <button class="freeplay-exit" id="freeplayExit">ready to search</button>
     </div>
 
     <!-- Search -->

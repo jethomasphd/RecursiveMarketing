@@ -114,6 +114,7 @@
     // Game overlay
     $('keepPlayingBtn').addEventListener('click', keepPlaying);
     $('readyBtn').addEventListener('click', readyToSearch);
+    $('freeplayExit').addEventListener('click', readyToSearch);
 
     // Picks
     var ni = $('nameInput');
@@ -192,7 +193,7 @@
     }
   }
 
-  // ─── Soft fade → game ──────────────────────────────────
+  // ─── Soft fade → guided breath → game ──────────────────
   function beginTransition() {
     log('begin transition');
     var landing = $('stageLanding');
@@ -200,8 +201,43 @@
 
     setTimeout(function () {
       landing.style.display = 'none';
-      startGame();
+      startBreath();
     }, 1000);
+  }
+
+  function startBreath() {
+    log('guided breath');
+    stage = 'breath';
+    var el = $('stageBreath');
+    var guide = $('breathGuide');
+    var text = $('breathText');
+    el.classList.add('active');
+
+    // Phase 1: breathe in (4s)
+    setTimeout(function () {
+      text.textContent = 'breathe in';
+      text.classList.add('vis');
+      guide.classList.add('expanding');
+    }, 600);
+
+    // Phase 2: breathe out (4.5s)
+    setTimeout(function () {
+      text.textContent = 'and out';
+      guide.classList.remove('expanding');
+      guide.classList.add('contracting');
+    }, 5000);
+
+    // Phase 3: fade out and start game
+    setTimeout(function () {
+      el.style.transition = 'opacity 0.8s ease';
+      el.style.opacity = '0';
+      setTimeout(function () {
+        el.classList.remove('active');
+        el.style.opacity = '';
+        el.style.transition = '';
+        startGame();
+      }, 800);
+    }, 9800);
   }
 
   function skipToSearch() {
@@ -228,6 +264,9 @@
       for (var c = 0; c < COLS; c++) grid[r][c] = null;
     }
 
+    // Pre-fill bottom rows so the board starts mid-puzzle
+    seedGrid();
+
     rowsCleared = 0;
     wordIndex = 0;
     breathTimer = 0;
@@ -242,6 +281,7 @@
     currentPiece = spawnPiece();
 
     $('gameOverlay').classList.remove('vis');
+    $('freeplayExit').classList.remove('vis');
     $('timerTrack').style.display = '';
 
     // Initialize breath circle
@@ -249,6 +289,38 @@
     if (circle) { circle.classList.remove('inhale', 'exhale'); circle.classList.add('inhale'); }
 
     gameLoop(Date.now());
+  }
+
+  // Seed bottom rows with blocks and gaps — gives the user something to puzzle into
+  function seedGrid() {
+    var colors = [];
+    for (var i = 0; i < PIECES.length; i++) colors.push(PIECES[i].color);
+
+    // Fill rows ROWS-5 through ROWS-1 (bottom 5 rows)
+    for (var r = ROWS - 5; r < ROWS; r++) {
+      // Rows closer to bottom are more filled
+      var density = 0.4 + (r - (ROWS - 5)) * 0.08;
+      for (var c = 0; c < COLS; c++) {
+        if (Math.random() < density) {
+          grid[r][c] = colors[Math.floor(Math.random() * colors.length)];
+        }
+      }
+    }
+
+    // Ensure no row is completely full (so the game doesn't immediately clear)
+    for (var r2 = ROWS - 5; r2 < ROWS; r2++) {
+      var full = true;
+      for (var c2 = 0; c2 < COLS; c2++) {
+        if (!grid[r2][c2]) { full = false; break; }
+      }
+      if (full) {
+        // Remove 2-3 random blocks
+        var gaps = 2 + Math.floor(Math.random() * 2);
+        for (var g = 0; g < gaps; g++) {
+          grid[r2][Math.floor(Math.random() * COLS)] = null;
+        }
+      }
+    }
   }
 
   function spawnPiece() {
@@ -337,6 +409,7 @@
     timerExpired = false;
     $('gameOverlay').classList.remove('vis');
     $('timerTrack').style.display = 'none';
+    $('freeplayExit').classList.add('vis');
   }
 
   function readyToSearch() {
