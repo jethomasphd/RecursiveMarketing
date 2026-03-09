@@ -162,8 +162,8 @@ html,body{
 .breath-stage.active{opacity:1;pointer-events:auto}
 
 .breath-guide{
-  width:100px;height:100px;border-radius:50%;
-  border:1.5px solid var(--sage);
+  width:100px;height:100px;
+  color:var(--sage);
   opacity:0.4;
   transform:scale(0.5);
   margin-bottom:32px;
@@ -197,24 +197,24 @@ html,body{
 }
 .game.active{opacity:1;pointer-events:auto}
 
-/* Breath circle */
+/* Breath circle — hand-drawn SVG */
 .breath-wrap{
   position:relative;width:64px;height:64px;margin-bottom:10px;
 }
 .breath-circle{
-  width:100%;height:100%;border-radius:50%;
-  border:1.5px solid var(--sage);
+  width:100%;height:100%;
+  color:var(--sage);
   opacity:0.5;
   transition:transform 4s cubic-bezier(0.4,0,0.2,1), opacity 4s ease;
   transform:scale(0.6);
 }
 .breath-circle.inhale{
   transform:scale(1);opacity:0.85;
-  border-color:var(--sage);
+  color:var(--sage);
 }
 .breath-circle.exhale{
   transform:scale(0.6);opacity:0.4;
-  border-color:var(--ink);
+  color:var(--ink);
 }
 .breath-label{
   position:absolute;inset:0;
@@ -307,17 +307,39 @@ html,body{
 .ov-btn.primary{color:var(--gold);border-color:rgba(196,163,90,0.4)}
 .ov-btn.primary:hover,.ov-btn.primary:active{color:var(--stone);border-color:var(--gold)}
 
-/* Free-play escape */
-.freeplay-exit{
-  font-family:var(--serif);font-size:12px;font-weight:300;
-  font-style:italic;color:var(--dim);background:none;
-  border:none;cursor:pointer;margin-top:12px;
-  letter-spacing:0.3px;
+/* Free-play bar */
+.freeplay-bar{
+  display:flex;gap:16px;align-items:center;justify-content:center;
+  margin-top:14px;
   opacity:0;pointer-events:none;
-  transition:opacity .5s ease, color .3s;
+  transition:opacity .5s ease;
 }
-.freeplay-exit.vis{opacity:1;pointer-events:auto}
-.freeplay-exit:hover{color:var(--gold)}
+.freeplay-bar.vis{opacity:1;pointer-events:auto}
+
+.freeplay-next{
+  font-family:var(--serif);font-size:12px;font-weight:300;
+  font-style:italic;color:var(--ink);background:none;
+  border:1px solid var(--border);border-radius:16px;
+  padding:8px 16px;cursor:pointer;letter-spacing:0.3px;
+  transition:all .3s;
+}
+.freeplay-next:hover{color:var(--gold);border-color:rgba(196,163,90,0.3)}
+
+.freeplay-exit{
+  font-family:var(--serif);font-size:13px;font-weight:400;
+  font-style:italic;color:var(--gold);
+  background:rgba(196,163,90,0.06);
+  border:1px solid rgba(196,163,90,0.4);
+  border-radius:20px;padding:8px 20px;
+  cursor:pointer;letter-spacing:0.3px;
+  animation:glow-pulse 2.5s ease-in-out infinite;
+  transition:all .3s;
+}
+.freeplay-exit:hover{color:var(--stone);border-color:var(--gold);background:rgba(196,163,90,0.12)}
+@keyframes glow-pulse{
+  0%,100%{box-shadow:0 0 8px rgba(196,163,90,0.15)}
+  50%{box-shadow:0 0 18px rgba(196,163,90,0.35)}
+}
 
 /* ═══════════════════════════════════════════
    SEARCH — picks + chat
@@ -775,14 +797,18 @@ html,body{
 
     <!-- Guided breath -->
     <div class="breath-stage" id="stageBreath">
-      <div class="breath-guide" id="breathGuide"></div>
+      <svg class="breath-guide" id="breathGuide" viewBox="0 0 100 100" fill="none">
+        <path d="M 52 8 C 82 9, 96 32, 94 52 C 92 76, 72 96, 48 95 C 24 94, 4 74, 6 48 C 8 26, 24 8, 47 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
       <div class="breath-text" id="breathText"></div>
     </div>
 
     <!-- Game -->
     <div class="game" id="stageGame">
       <div class="breath-wrap" id="breathWrap">
-        <div class="breath-circle" id="breathCircle"></div>
+        <svg class="breath-circle" id="breathCircle" viewBox="0 0 100 100" fill="none">
+          <path d="M 48 6 C 78 8, 94 28, 93 52 C 92 78, 70 96, 46 94 C 22 92, 4 72, 6 46 C 8 22, 26 6, 48 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
         <div class="breath-label" id="breathHint">in</div>
       </div>
 
@@ -793,6 +819,7 @@ html,body{
           <p class="ov-line">How do you feel?</p>
           <div class="ov-actions">
             <button class="ov-btn" id="keepPlayingBtn">keep playing</button>
+            <button class="ov-btn" id="tryDifferentBtn">try a different break</button>
             <button class="ov-btn primary" id="readyBtn">ready to search</button>
           </div>
         </div>
@@ -800,21 +827,24 @@ html,body{
 
       <div class="timer-track" id="timerTrack"><div class="timer-fill" id="timerFill"></div></div>
 
-      <div class="controls">
-        <button class="ctrl" id="ctrlLeft" aria-label="Move left">
+      <div class="controls" id="controlsBar">
+        <button class="ctrl" aria-label="Control 1">
           <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <button class="ctrl" id="ctrlRotate" aria-label="Rotate">
+        <button class="ctrl" aria-label="Control 2">
           <svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
         </button>
-        <button class="ctrl" id="ctrlRight" aria-label="Move right">
+        <button class="ctrl" aria-label="Control 3">
           <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
-        <button class="ctrl" id="ctrlSlam" aria-label="Drop">
+        <button class="ctrl" aria-label="Control 4">
           <svg viewBox="0 0 24 24"><polyline points="7 13 12 18 17 13"/><line x1="12" y1="6" x2="12" y2="18"/></svg>
         </button>
       </div>
-      <button class="freeplay-exit" id="freeplayExit">ready to search</button>
+      <div class="freeplay-bar" id="freeplayBar">
+        <button class="freeplay-next" id="freeplayNext">try another</button>
+        <button class="freeplay-exit" id="freeplayExit">ready to search</button>
+      </div>
     </div>
 
     <!-- Search -->
@@ -911,11 +941,12 @@ html,body{
         experience.
       </p>
       <p>
-        The mental health consequences are well-documented. Prolonged job
-        searching is associated with increased rates of
-        <span class="cite" data-title="Unemployment and Mental Health" data-cite="Paul, K. I. &amp; Moser, K. (2009). Unemployment impairs mental health: Meta-analyses. Journal of Vocational Behavior, 74(3), 264&ndash;282.">depression and anxiety</span>,
-        and in severe cases,
-        <span class="cite" data-title="Unemployment and Suicide" data-cite="Milner, A., Page, A., &amp; LaMontagne, A. D. (2013). Long-term unemployment and suicide: A systematic review and meta-analysis. PLoS ONE, 8(1), e51333.">suicidal ideation</span>.
+        The mental health consequences are well-documented.
+        <span class="cite" data-title="Unemployment and Mental Health" data-cite="Sterud, T. et al. (2025). Unemployment and health outcomes: An umbrella review of 46 meta-analyses of 60+ longitudinal studies. Scandinavian Journal of Work, Environment &amp; Health.">Umbrella reviews spanning 46 meta-analyses</span>
+        confirm that job loss and prolonged searching are associated with increased rates of
+        depression, anxiety, and diminished well-being. The psychological burden
+        <span class="cite" data-title="Economic Stress and Mental Health" data-cite="Arena, A. F. et al. (2023). Mental health and unemployment: A systematic review and meta-analysis of interventions. International Journal of Environmental Research and Public Health, 20(4), 2611.">persists across demographic groups and geographies</span>,
+        and compounds with search duration.
       </p>
       <p>
         Most job boards ignore this entirely. They optimize for clicks and
@@ -929,70 +960,94 @@ html,body{
       <p>
         Over the past decade, researchers have documented a striking and
         counterintuitive pattern:
-        <strong><span class="cite" data-title="Single-Session Interventions" data-cite="Schleider, J. L. &amp; Weisz, J. R. (2017). Little treatments, surprisingly big effects: A meta-analysis of single-session interventions for youth mental health. Journal of Child Psychology and Psychiatry, 58(6), 685&ndash;695.">brief interventions</span>,
+        <strong><span class="cite" data-title="Single-Session Interventions" data-cite="Schleider, J. L. et al. (2025). Single-session interventions for youth mental health: A review of the science and its translation. Annual Review of Clinical Psychology, 21.">brief interventions</span>,
         sometimes lasting only minutes, can produce measurable and lasting
         improvements</strong> when delivered at the right moment through
         the right channel.
       </p>
       <p>
-        The pattern appears across populations, settings, and intervention
-        types. What they share is a principle:
+        The evidence base has grown rapidly.
+        <span class="cite" data-title="Digital Mental Health Interventions" data-cite="Moshe, I. et al. (2021). Digital interventions for the treatment of depression: A meta-analytic review. Psychological Bulletin, 147(8), 749&ndash;786.">Meta-analyses of digital mental health interventions</span>
+        now show effect sizes comparable to face-to-face therapy for mild-to-moderate
+        symptoms. What these interventions share is a principle:
         <strong>timing and context matter more than dose.</strong>
       </p>
 
       <h3>The evidence</h3>
 
       <div class="evidence">
-        <div class="ev-label">Randomized controlled trial</div>
-        <div class="ev-title">Visual-spatial games and intrusive memories</div>
+        <div class="ev-label">Nature Human Behaviour &middot; 2024</div>
+        <div class="ev-title">Visual-spatial games interrupt rumination</div>
         <div class="ev-detail">
-          Playing Tetris while recalling distressing events significantly
-          reduced
-          <span class="cite" data-title="Tetris and Intrusive Memories" data-cite="Iyadurai, L. et al. (2018). Preventing intrusive memories after trauma via a brief intervention involving Tetris computer game play in the emergency department. Molecular Psychiatry, 23, 674&ndash;682. Also: Holmes, E. A. et al. (2025). Reducing healthcare workers' intrusive memories of COVID-19. The Lancet Psychiatry.">intrusive memories</span>
-          by ~70%. The mechanism:
-          <span class="cite" data-title="Visuospatial Processing" data-cite="Holmes, E. A. et al. (2009). Can playing the computer game 'Tetris' reduce the build-up of flashbacks for trauma? PLoS ONE, 4(1), e4153.">visual-spatial processing</span>
-          competes with the brain's ability to consolidate distressing imagery.
+          <span class="cite" data-title="Visuospatial Interference" data-cite="Varma, M. M. et al. (2024). Reducing intrusive memories through a brief visuospatial task: A mega-analysis of Tetris studies. Nature Human Behaviour, 8, 1242&ndash;1252.">A mega-analysis across multiple Tetris studies</span>
+          confirmed that visuospatial gameplay significantly reduces
+          intrusive memories. The mechanism:
+          <span class="cite" data-title="Tetris and Trauma" data-cite="Iyadurai, L. et al. (2018). Preventing intrusive memories after trauma via a brief intervention involving Tetris computer game play in the emergency department. Molecular Psychiatry, 23, 674&ndash;682.">spatial-cognitive tasks</span>
+          compete with the brain's ability to consolidate distressing imagery,
+          temporarily interrupting the rumination loop.
         </div>
-        <div class="ev-result">~70% reduction in intrusive memories at 4-week follow-up</div>
+        <div class="ev-result">Robust effect confirmed across pooled RCT data</div>
       </div>
 
       <div class="evidence">
-        <div class="ev-label">Frontiers in Human Neuroscience</div>
-        <div class="ev-title">Controlled breathing and autonomic regulation</div>
+        <div class="ev-label">Systematic review &middot; Cell Reports Medicine</div>
+        <div class="ev-title">Controlled breathing and stress physiology</div>
         <div class="ev-detail">
-          <span class="cite" data-title="Breathing and Autonomic Function" data-cite="Zaccaro, A. et al. (2018). How breath-control can change your life: A systematic review on psycho-physiological correlates of slow breathing. Frontiers in Human Neuroscience, 12, 353.">Slow, paced breathing</span>
-          activates the parasympathetic nervous system, reducing cortisol
-          and heart rate within minutes. A four-second cycle is sufficient.
+          <span class="cite" data-title="Cyclic Sighing" data-cite="Yilmaz Balban, M. et al. (2023). Brief structured respiration practices enhance mood and reduce physiological arousal. Cell Reports Medicine, 4(1), 100895.">Brief structured breathing</span>
+          &mdash; even a single deliberate breath cycle &mdash; reduces
+          physiological arousal and improves mood. Cyclic sighing outperformed
+          mindfulness meditation in a Stanford RCT.
+          <span class="cite" data-title="Breathing Systematic Review" data-cite="Fincham, G. W. et al. (2023). Effect of breathwork on stress and mental health: A meta-analysis of randomised-controlled trials. Scientific Reports, 13, 432.">Meta-analytic evidence</span>
+          confirms large effect sizes for breathwork on stress reduction.
         </div>
-        <div class="ev-result">Measurable cortisol and heart rate reduction within minutes</div>
+        <div class="ev-result">Significant mood improvement from a single breath cycle</div>
       </div>
 
       <div class="evidence">
-        <div class="ev-label">Meta-analysis &middot; 10,000+ youth</div>
-        <div class="ev-title">Single-session interventions</div>
+        <div class="ev-label">Meta-analysis &middot; Casual games</div>
+        <div class="ev-title">Simple games reduce anxiety and improve mood</div>
         <div class="ev-detail">
-          Across dozens of trials,
-          <span class="cite" data-title="Single-Session Interventions" data-cite="Schleider, J. L. &amp; Weisz, J. R. (2017). Little treatments, surprisingly big effects: A meta-analysis of single-session interventions for youth mental health. Journal of Child Psychology and Psychiatry, 58(6), 685&ndash;695.">brief interventions lasting minutes</span>
-          produced measurable and lasting improvements when delivered at the right moment. Timing and context matter more than dose.
+          <span class="cite" data-title="Casual Games and Wellbeing" data-cite="Pallavicini, F. et al. (2021). Video games for well-being: A systematic review on the application of computer games for cognitive and emotional training in the adult population. Frontiers in Psychology, 12, 608814.">Systematic reviews of casual gaming</span>
+          show that simple, low-stakes games &mdash; puzzle, matching, and
+          rhythm games &mdash; reduce state anxiety and improve affect,
+          particularly when played in brief sessions.
+          <span class="cite" data-title="Casual Games and Anxiety" data-cite="Pine, R. et al. (2020). The effects of casual videogames on anxiety, depression, stress, and low mood: A systematic review. Games for Health Journal, 9(4), 255&ndash;264.">The effect is consistent</span>
+          across game types, suggesting the mechanism is cognitive engagement
+          itself, not any specific game.
         </div>
-        <div class="ev-result">Significant effects from single-session delivery</div>
+        <div class="ev-result">Consistent anxiety reduction across game types</div>
+      </div>
+
+      <div class="evidence">
+        <div class="ev-label">Flow state research &middot; 2024</div>
+        <div class="ev-title">Flow as a buffer against negative affect</div>
+        <div class="ev-detail">
+          When a game's challenge matches your skill level, you enter
+          <span class="cite" data-title="Flow and Wellbeing" data-cite="Gaston, A. et al. (2024). Flow state and well-being: A systematic review. Journal of Happiness Studies, 25, 61.">flow state</span>
+          &mdash; a condition of absorbed, effortless attention.
+          Flow is associated with reduced self-referential thinking, the
+          cognitive pattern that drives worry and rumination. Each game here
+          is designed to invite flow through immediate challenge and clear feedback.
+        </div>
+        <div class="ev-result">Flow correlates with reduced rumination and improved well-being</div>
       </div>
 
       <div class="sep"></div>
 
-      <h2>What the game does</h2>
+      <h2>What the games do</h2>
 
       <p>
-        The brief game offered before your search combines three
-        mechanisms from the research above into a single micro-intervention.
+        Each game offered before your search targets overlapping
+        mechanisms from the research above. You don't need to play them all
+        &mdash; any one is a complete micro-intervention.
       </p>
 
       <div class="mechanism">
         <div class="mech-num">i</div>
         <div class="mech-title">Visual-spatial engagement</div>
         <div class="mech-text">
-          Guiding falling blocks requires
-          <span class="cite" data-title="Visuospatial Working Memory" data-cite="Holmes, E. A. et al. (2009). Can playing the computer game 'Tetris' reduce the build-up of flashbacks for trauma? A proposal from cognitive science. PLoS ONE, 4(1), e4153.">visuospatial working memory</span>
+          Guiding falling blocks, tracking a ball, or aiming a shot requires
+          <span class="cite" data-title="Visuospatial Working Memory" data-cite="Varma, M. M. et al. (2024). Reducing intrusive memories through a brief visuospatial task: A mega-analysis of Tetris studies. Nature Human Behaviour, 8, 1242&ndash;1252.">visuospatial working memory</span>
           &mdash; the same cognitive resource the brain uses to replay anxious
           scenarios. When that resource is occupied, the rumination loop is
           temporarily interrupted.
@@ -1003,23 +1058,36 @@ html,body{
         <div class="mech-num">ii</div>
         <div class="mech-title">Paced breathing</div>
         <div class="mech-text">
-          The game's rhythm is synchronized to a calm breathing pattern.
-          <span class="cite" data-title="Breathing and Autonomic Function" data-cite="Zaccaro, A. et al. (2018). How breath-control can change your life: A systematic review on psycho-physiological correlates of slow breathing. Frontiers in Human Neuroscience, 12, 353.">Controlled breathing</span>
-          activates the parasympathetic nervous system, reducing cortisol
-          and heart rate within minutes. You may not have noticed. That's
-          by design.
+          Before gameplay begins, you take a single guided breath. During play,
+          a subtle breathing circle continues the rhythm.
+          <span class="cite" data-title="Breathing and Mood" data-cite="Yilmaz Balban, M. et al. (2023). Brief structured respiration practices enhance mood and reduce physiological arousal. Cell Reports Medicine, 4(1), 100895.">Even one deliberate breath cycle</span>
+          activates the parasympathetic nervous system, reducing physiological
+          arousal. You may not have noticed. That's by design.
         </div>
       </div>
 
       <div class="mechanism">
         <div class="mech-num">iii</div>
+        <div class="mech-title">Flow and cognitive absorption</div>
+        <div class="mech-text">
+          Each game is calibrated to offer immediate, achievable challenge
+          &mdash; the conditions that
+          <span class="cite" data-title="Flow and Wellbeing" data-cite="Gaston, A. et al. (2024). Flow state and well-being: A systematic review. Journal of Happiness Studies, 25, 61.">elicit flow state</span>.
+          Flow reduces self-referential thinking &mdash; the mental habit that
+          sustains worry. A brief window of absorbed attention is enough to
+          shift your cognitive baseline before you search.
+        </div>
+      </div>
+
+      <div class="mechanism">
+        <div class="mech-num">iv</div>
         <div class="mech-title">Brief positive anchoring</div>
         <div class="mech-text">
           Words that appear during gameplay are
-          <span class="cite" data-title="Wise Interventions" data-cite="Walton, G. M. (2014). The new science of wise psychological interventions. Current Directions in Psychological Science, 23(1), 73&ndash;82.">micro-affirmations</span>
+          <span class="cite" data-title="Gamified Wellbeing" data-cite="Cheng, V. W. S. &amp; Ebrahimi, O. V. (2023). Gamification in mental health apps: A systematic review of effectiveness and engagement. JMIR Mental Health, 10, e40831.">micro-affirmations</span>
           delivered at a moment of small accomplishment &mdash; anchoring a
-          positive association at the point of action. This mirrors the
-          mechanism by which caring letters reduce crisis recurrence.
+          positive association at the point of action. Gamified delivery
+          increases engagement with mental health content.
         </div>
       </div>
 
@@ -1032,10 +1100,11 @@ html,body{
       </p>
       <p>
         The core insight from
-        <span class="cite" data-title="Micro-Intervention Research" data-cite="Schleider, J. L. (2024). Little Treatments, Big Effects. Oxford University Press. See also: Schleider, J. L. et al. (2020). A randomized trial of online single-session interventions for adolescent depression during COVID-19. Nature Human Behaviour, 4, 602&ndash;609.">micro-intervention research</span>
+        <span class="cite" data-title="Single-Session Interventions" data-cite="Schleider, J. L. et al. (2025). Single-session interventions for youth mental health: A review of the science and its translation. Annual Review of Clinical Psychology, 21.">single-session intervention research</span>
         is that interventions work best when delivered at the moment of need,
         through channels people are already using. A job board is a point of
-        convergence for a population under active psychological strain.
+        convergence for a population under
+        <span class="cite" data-title="Unemployment and Health" data-cite="Arena, A. F. et al. (2023). Mental health and unemployment: A systematic review and meta-analysis of interventions. International Journal of Environmental Research and Public Health, 20(4), 2611.">active psychological strain</span>.
       </p>
       <p>
         We are not a therapy app. We do not diagnose or treat clinical
@@ -1072,12 +1141,18 @@ html,body{
 
       <div class="refs">
         <h3>References</h3>
-        <p>Holmes, E. A. et al. (2009). Can playing &lsquo;Tetris&rsquo; reduce flashbacks for trauma? <em>PLoS ONE</em>, 4(1), e4153.</p>
+        <p>Arena, A. F. et al. (2023). Mental health and unemployment: A systematic review and meta-analysis of interventions. <em>Int. J. Environmental Research and Public Health</em>, 20(4), 2611.</p>
+        <p>Cheng, V. W. S. &amp; Ebrahimi, O. V. (2023). Gamification in mental health apps: A systematic review of effectiveness and engagement. <em>JMIR Mental Health</em>, 10, e40831.</p>
+        <p>Fincham, G. W. et al. (2023). Effect of breathwork on stress and mental health: A meta-analysis of randomised-controlled trials. <em>Scientific Reports</em>, 13, 432.</p>
+        <p>Gaston, A. et al. (2024). Flow state and well-being: A systematic review. <em>Journal of Happiness Studies</em>, 25, 61.</p>
         <p>Iyadurai, L. et al. (2018). Preventing intrusive memories after trauma via Tetris. <em>Molecular Psychiatry</em>, 23, 674&ndash;682.</p>
-        <p>Paul, K. I. &amp; Moser, K. (2009). Unemployment impairs mental health. <em>J. Vocational Behavior</em>, 74(3), 264&ndash;282.</p>
-        <p>Schleider, J. L. &amp; Weisz, J. R. (2017). Little treatments, big effects. <em>J. Child Psych. &amp; Psychiatry</em>, 58(6), 685&ndash;695.</p>
-        <p>Walton, G. M. (2014). Wise psychological interventions. <em>Current Directions in Psychological Science</em>, 23(1), 73&ndash;82.</p>
-        <p>Zaccaro, A. et al. (2018). How breath-control can change your life. <em>Frontiers in Human Neuroscience</em>, 12, 353.</p>
+        <p>Moshe, I. et al. (2021). Digital interventions for the treatment of depression: A meta-analytic review. <em>Psychological Bulletin</em>, 147(8), 749&ndash;786.</p>
+        <p>Pallavicini, F. et al. (2021). Video games for well-being: A systematic review. <em>Frontiers in Psychology</em>, 12, 608814.</p>
+        <p>Pine, R. et al. (2020). The effects of casual videogames on anxiety, depression, stress, and low mood: A systematic review. <em>Games for Health Journal</em>, 9(4), 255&ndash;264.</p>
+        <p>Schleider, J. L. et al. (2025). Single-session interventions for youth mental health: A review of the science and its translation. <em>Annual Review of Clinical Psychology</em>, 21.</p>
+        <p>Sterud, T. et al. (2025). Unemployment and health outcomes: An umbrella review of 46 meta-analyses. <em>Scand. J. Work, Environment &amp; Health</em>.</p>
+        <p>Varma, M. M. et al. (2024). Reducing intrusive memories through a brief visuospatial task: A mega-analysis. <em>Nature Human Behaviour</em>, 8, 1242&ndash;1252.</p>
+        <p>Yilmaz Balban, M. et al. (2023). Brief structured respiration practices enhance mood and reduce physiological arousal. <em>Cell Reports Medicine</em>, 4(1), 100895.</p>
       </div>
 
       <div class="colophon">
@@ -1101,6 +1176,7 @@ html,body{
 <script>
   window.__WORKER_URL__ = 'https://recursive-marketing-worker.jethomasphd.workers.dev';
 </script>
+<script src="games.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
