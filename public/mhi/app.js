@@ -49,11 +49,16 @@
   var grid = [];
   var currentPiece = null;
   var dropTimer = 0;
-  var DROP_INTERVAL = 1100;
+  var DROP_INTERVAL = 1000;
   var rowsCleared = 0;
   var floatingWords = [];
-  var gameWords = ['breathe', 'pause', "you're here", 'you matter', 'steady', 'ready'];
+  var gameWords = ['breathe', 'pause', "you're here", 'you matter', 'steady', 'ready', 'begin again'];
   var wordIndex = 0;
+
+  // Ember particles
+  var embers = [];
+  var emberCanvas, emberCtx;
+  var emberRunning = false;
 
   // Piece definitions — muted natural tones
   var PIECES = [
@@ -100,6 +105,7 @@
     $('ctrlLeft').addEventListener('click', function () { movePiece(-1); });
     $('ctrlRight').addEventListener('click', function () { movePiece(1); });
     $('ctrlRotate').addEventListener('click', function () { rotatePiece(); });
+    $('ctrlSlam').addEventListener('click', function () { slamPiece(); });
 
     // Prevent double-tap zoom on controls
     each('.ctrl', function (btn) {
@@ -109,6 +115,14 @@
         btn.click();
       }, { passive: false });
     });
+
+    // Ember canvas
+    emberCanvas = $('emberCanvas');
+    if (emberCanvas) {
+      emberCtx = emberCanvas.getContext('2d');
+      sizeEmberCanvas();
+      window.addEventListener('resize', sizeEmberCanvas);
+    }
 
     // Game overlay
     $('keepPlayingBtn').addEventListener('click', keepPlaying);
@@ -167,6 +181,61 @@
     gameCanvas.height = ROWS * CELL;
   }
 
+  // ─── Ember canvas ──────────────────────────────────────────
+  function sizeEmberCanvas() {
+    if (!emberCanvas) return;
+    emberCanvas.width = window.innerWidth;
+    emberCanvas.height = window.innerHeight;
+  }
+
+  function spawnEmbers() {
+    embers = [];
+    var count = 60;
+    for (var i = 0; i < count; i++) {
+      embers.push({
+        x: Math.random() * emberCanvas.width,
+        y: emberCanvas.height * 0.4 + Math.random() * emberCanvas.height * 0.6,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: -(1.5 + Math.random() * 3),
+        size: 1 + Math.random() * 3,
+        life: 1,
+        decay: 0.003 + Math.random() * 0.008,
+        hue: 20 + Math.random() * 30, // orange-amber range
+      });
+    }
+    emberRunning = true;
+    requestAnimationFrame(drawEmbers);
+  }
+
+  function drawEmbers() {
+    if (!emberRunning || !emberCtx) return;
+    emberCtx.clearRect(0, 0, emberCanvas.width, emberCanvas.height);
+
+    var alive = false;
+    for (var i = 0; i < embers.length; i++) {
+      var e = embers[i];
+      if (e.life <= 0) continue;
+      alive = true;
+      e.x += e.vx + (Math.random() - 0.5) * 0.5;
+      e.y += e.vy;
+      e.vy *= 0.995;
+      e.life -= e.decay;
+
+      emberCtx.save();
+      emberCtx.globalAlpha = e.life * 0.8;
+      emberCtx.fillStyle = 'hsl(' + e.hue + ', 90%, ' + (50 + e.life * 20) + '%)';
+      emberCtx.shadowColor = 'hsl(' + e.hue + ', 100%, 60%)';
+      emberCtx.shadowBlur = 6;
+      emberCtx.beginPath();
+      emberCtx.arc(e.x, e.y, e.size * e.life, 0, Math.PI * 2);
+      emberCtx.fill();
+      emberCtx.restore();
+    }
+
+    if (alive) requestAnimationFrame(drawEmbers);
+    else emberRunning = false;
+  }
+
   // ═══════════════════════════════════════════════════════════
   // LANDING — cinematic slow reveal
   // ═══════════════════════════════════════════════════════════
@@ -194,11 +263,15 @@
   // ─── Whimsical exit → game ──────────────────────────────
   function beginTransition() {
     log('begin transition');
+    // Fire ember effect — burning down the old job board
+    if (emberCanvas && emberCtx) spawnEmbers();
+
     var landing = $('stageLanding');
     landing.classList.add('exiting');
 
     setTimeout(function () {
       landing.style.display = 'none';
+      emberRunning = false;
       startGame();
     }, 850);
   }
@@ -243,6 +316,10 @@
     $('gameOverlay').classList.remove('vis');
     $('timerTrack').style.display = '';
 
+    // Initialize breath circle
+    var circle = $('breathCircle');
+    if (circle) { circle.classList.remove('inhale', 'exhale'); circle.classList.add('inhale'); }
+
     gameLoop(Date.now());
   }
 
@@ -277,14 +354,19 @@
         }
       }
 
-      // Breathing
+      // Breathing — synced to circle
       breathTimer += dt;
       var cycle = BREATH_IN + BREATH_OUT;
       var pos = breathTimer % cycle;
       var newPhase = pos < BREATH_IN ? 'in' : 'out';
       if (newPhase !== breathPhase) {
         breathPhase = newPhase;
-        $('breathHint').textContent = breathPhase === 'in' ? 'breathe in' : 'breathe out';
+        $('breathHint').textContent = breathPhase === 'in' ? 'in' : 'out';
+        var circle = $('breathCircle');
+        if (circle) {
+          circle.classList.remove('inhale', 'exhale');
+          circle.classList.add(breathPhase === 'in' ? 'inhale' : 'exhale');
+        }
       }
 
       // Drop
@@ -433,6 +515,20 @@
       }
     }
     // Rotation doesn't fit — do nothing (no punishment)
+  }
+
+  function slamPiece() {
+    if (!gameRunning || !currentPiece || gamePaused) return;
+    // Hard drop: move piece down as far as it can go
+    while (tryMove(currentPiece, 0, 1)) { /* keep dropping */ }
+    lockPiece(currentPiece);
+    checkRows();
+    currentPiece = spawnPiece();
+    if (!canPlace(currentPiece, currentPiece.x, currentPiece.y)) {
+      clearTopRows();
+      currentPiece.y = 0;
+    }
+    dropTimer = 0;
   }
 
   function checkRows() {

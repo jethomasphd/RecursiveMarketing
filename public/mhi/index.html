@@ -165,6 +165,38 @@ html,body{
 }
 .game.active{opacity:1;pointer-events:auto}
 
+/* Ember overlay */
+.ember-canvas{
+  position:absolute;inset:0;z-index:10;pointer-events:none;
+}
+
+/* Breath circle */
+.breath-wrap{
+  position:relative;width:64px;height:64px;margin-bottom:10px;
+}
+.breath-circle{
+  width:100%;height:100%;border-radius:50%;
+  border:1.5px solid var(--sage);
+  opacity:0.5;
+  transition:transform 4s cubic-bezier(0.4,0,0.2,1), opacity 4s ease;
+  transform:scale(0.6);
+}
+.breath-circle.inhale{
+  transform:scale(1);opacity:0.85;
+  border-color:var(--sage);
+}
+.breath-circle.exhale{
+  transform:scale(0.6);opacity:0.4;
+  border-color:var(--ink);
+}
+.breath-label{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:10px;font-weight:300;
+  font-style:italic;color:var(--ink);letter-spacing:0.5px;
+  pointer-events:none;
+}
+
 .breath-hint{
   font-family:var(--serif);font-size:15px;font-weight:300;
   font-style:italic;color:var(--ink);letter-spacing:0.5px;
@@ -684,6 +716,7 @@ html,body{
 
     <!-- Landing -->
     <div class="landing" id="stageLanding">
+      <canvas class="ember-canvas" id="emberCanvas"></canvas>
 
       <svg class="enso" id="enso" viewBox="0 0 100 100" aria-hidden="true">
         <path class="enso-path" d="M 58 8 C 78 6, 96 24, 96 48 C 96 74, 76 96, 50 96 C 24 96, 4 74, 4 48 C 4 24, 22 8, 44 6" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round"/>
@@ -705,7 +738,10 @@ html,body{
 
     <!-- Game -->
     <div class="game" id="stageGame">
-      <div class="breath-hint" id="breathHint">breathe in</div>
+      <div class="breath-wrap" id="breathWrap">
+        <div class="breath-circle" id="breathCircle"></div>
+        <div class="breath-label" id="breathHint">in</div>
+      </div>
 
       <div class="game-board" id="gameBoard">
         <canvas class="game-canvas" id="gameCanvas"></canvas>
@@ -731,6 +767,9 @@ html,body{
         <button class="ctrl" id="ctrlRight" aria-label="Move right">
           <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
+        <button class="ctrl" id="ctrlSlam" aria-label="Drop">
+          <svg viewBox="0 0 24 24"><polyline points="7 13 12 18 17 13"/><line x1="12" y1="6" x2="12" y2="18"/></svg>
+        </button>
       </div>
     </div>
 
@@ -739,6 +778,7 @@ html,body{
 
       <!-- Picks -->
       <div class="picks" id="picksView">
+        <p class="picks-handhold" style="font-size:11px;font-weight:300;color:var(--dim);letter-spacing:0.3px;margin-bottom:16px;line-height:1.7;max-width:300px;">This search is different. Real AI. Real federal jobs database. No fake listings, no spam.</p>
         <p class="picks-prompt">What shall we call you?</p>
         <input class="name-input" id="nameInput" type="text"
           placeholder="your name" maxlength="20"
@@ -865,63 +905,33 @@ html,body{
           Playing Tetris while recalling distressing events significantly
           reduced
           <span class="cite" data-title="Tetris and Intrusive Memories" data-cite="Iyadurai, L. et al. (2018). Preventing intrusive memories after trauma via a brief intervention involving Tetris computer game play in the emergency department. Molecular Psychiatry, 23, 674&ndash;682. Also: Holmes, E. A. et al. (2025). Reducing healthcare workers' intrusive memories of COVID-19. The Lancet Psychiatry.">intrusive memories</span>
-          compared to control conditions. The mechanism:
+          by ~70%. The mechanism:
           <span class="cite" data-title="Visuospatial Processing" data-cite="Holmes, E. A. et al. (2009). Can playing the computer game 'Tetris' reduce the build-up of flashbacks for trauma? PLoS ONE, 4(1), e4153.">visual-spatial processing</span>
-          competes with the brain's ability to consolidate and replay
-          distressing imagery.
+          competes with the brain's ability to consolidate distressing imagery.
         </div>
         <div class="ev-result">~70% reduction in intrusive memories at 4-week follow-up</div>
       </div>
 
       <div class="evidence">
-        <div class="ev-label">JAMA &middot; Randomized trial</div>
-        <div class="ev-title">Community-delivered therapy on a bench</div>
+        <div class="ev-label">Frontiers in Human Neuroscience</div>
+        <div class="ev-title">Controlled breathing and autonomic regulation</div>
         <div class="ev-detail">
-          In Zimbabwe, trained
-          <span class="cite" data-title="The Friendship Bench" data-cite="Chibanda, D. et al. (2016). Effect of a primary care-based psychological intervention on symptoms of common mental disorders in Zimbabwe: A randomized clinical trial. JAMA, 316(24), 2618&ndash;2626.">lay health workers</span>
-          &mdash; grandmothers &mdash; delivered structured problem-solving
-          therapy on wooden benches outside clinics. No prescriptions. No
-          clinical settings. Significant reductions in depression and anxiety.
+          <span class="cite" data-title="Breathing and Autonomic Function" data-cite="Zaccaro, A. et al. (2018). How breath-control can change your life: A systematic review on psycho-physiological correlates of slow breathing. Frontiers in Human Neuroscience, 12, 353.">Slow, paced breathing</span>
+          activates the parasympathetic nervous system, reducing cortisol
+          and heart rate within minutes. A four-second cycle is sufficient.
         </div>
-        <div class="ev-result">Significant reductions in common mental disorders</div>
+        <div class="ev-result">Measurable cortisol and heart rate reduction within minutes</div>
       </div>
 
       <div class="evidence">
-        <div class="ev-label">Psychiatric Services &middot; Longitudinal</div>
-        <div class="ev-title">Caring letters and suicide prevention</div>
+        <div class="ev-label">Meta-analysis &middot; 10,000+ youth</div>
+        <div class="ev-title">Single-session interventions</div>
         <div class="ev-detail">
-          Periodic
-          <span class="cite" data-title="Caring Letters" data-cite="Motto, J. A. &amp; Bostrom, A. G. (2001). A randomized controlled trial of postcrisis suicide prevention. Psychiatric Services, 52(6), 828&ndash;833.">brief check-in letters</span>
-          sent to people discharged after suicidal crisis reduced
-          suicide rates over a five-year follow-up period. The intervention:
-          a postcard. The cost: a stamp.
+          Across dozens of trials,
+          <span class="cite" data-title="Single-Session Interventions" data-cite="Schleider, J. L. &amp; Weisz, J. R. (2017). Little treatments, surprisingly big effects: A meta-analysis of single-session interventions for youth mental health. Journal of Child Psychology and Psychiatry, 58(6), 685&ndash;695.">brief interventions lasting minutes</span>
+          produced measurable and lasting improvements when delivered at the right moment. Timing and context matter more than dose.
         </div>
-        <div class="ev-result">Measurable reduction in suicide rates across 5 years</div>
-      </div>
-
-      <div class="evidence">
-        <div class="ev-label">80,000+ participants</div>
-        <div class="ev-title">A single session of guided relaxation</div>
-        <div class="ev-detail">
-          One
-          <span class="cite" data-title="Self-Hypnosis and Stress" data-cite="Spiegel, D. et al. (2025). Digital self-hypnosis intervention for stress: Results from a large-scale study. Nature.">app-delivered session</span>
-          significantly reduced self-reported stress
-          across a massive sample. One session. One app.
-        </div>
-        <div class="ev-result">Significant stress reduction from a single session</div>
-      </div>
-
-      <div class="evidence">
-        <div class="ev-label">Nature &middot; 2025</div>
-        <div class="ev-title">Restoring sensory connection</div>
-        <div class="ev-detail">
-          Providing
-          <span class="cite" data-title="Hearing Aids and Depression" data-cite="Wang, J. et al. (2025). Hearing aid use and depression in older adults. Nature.">hearing aids</span>
-          to older adults with hearing loss produced mood improvements
-          exceeding benchmarks from antidepressant medication studies. A
-          simple correction of isolation was more powerful than pharmacology.
-        </div>
-        <div class="ev-result">Mood improvement exceeding antidepressant benchmarks</div>
+        <div class="ev-result">Significant effects from single-session delivery</div>
       </div>
 
       <div class="sep"></div>
@@ -1018,15 +1028,11 @@ html,body{
 
       <div class="refs">
         <h3>References</h3>
-        <p>Chibanda, D. et al. (2016). Effect of a primary care-based psychological intervention on symptoms of common mental disorders in Zimbabwe. <em>JAMA</em>, 316(24), 2618&ndash;2626.</p>
-        <p>Holmes, E. A. et al. (2009). Can playing the computer game &lsquo;Tetris&rsquo; reduce the build-up of flashbacks for trauma? <em>PLoS ONE</em>, 4(1), e4153.</p>
-        <p>Holmes, E. A. et al. (2025). Reducing healthcare workers&rsquo; intrusive memories of COVID-19 with a brief imagery-competing task intervention. <em>The Lancet Psychiatry</em>.</p>
-        <p>Iyadurai, L. et al. (2018). Preventing intrusive memories after trauma via a brief intervention involving Tetris. <em>Molecular Psychiatry</em>, 23, 674&ndash;682.</p>
-        <p>Milner, A., Page, A., &amp; LaMontagne, A. D. (2013). Long-term unemployment and suicide. <em>PLoS ONE</em>, 8(1), e51333.</p>
-        <p>Motto, J. A. &amp; Bostrom, A. G. (2001). A randomized controlled trial of postcrisis suicide prevention. <em>Psychiatric Services</em>, 52(6), 828&ndash;833.</p>
-        <p>Paul, K. I. &amp; Moser, K. (2009). Unemployment impairs mental health: Meta-analyses. <em>Journal of Vocational Behavior</em>, 74(3), 264&ndash;282.</p>
-        <p>Schleider, J. L. &amp; Weisz, J. R. (2017). Little treatments, surprisingly big effects. <em>Journal of Child Psychology and Psychiatry</em>, 58(6), 685&ndash;695.</p>
-        <p>Walton, G. M. (2014). The new science of wise psychological interventions. <em>Current Directions in Psychological Science</em>, 23(1), 73&ndash;82.</p>
+        <p>Holmes, E. A. et al. (2009). Can playing &lsquo;Tetris&rsquo; reduce flashbacks for trauma? <em>PLoS ONE</em>, 4(1), e4153.</p>
+        <p>Iyadurai, L. et al. (2018). Preventing intrusive memories after trauma via Tetris. <em>Molecular Psychiatry</em>, 23, 674&ndash;682.</p>
+        <p>Paul, K. I. &amp; Moser, K. (2009). Unemployment impairs mental health. <em>J. Vocational Behavior</em>, 74(3), 264&ndash;282.</p>
+        <p>Schleider, J. L. &amp; Weisz, J. R. (2017). Little treatments, big effects. <em>J. Child Psych. &amp; Psychiatry</em>, 58(6), 685&ndash;695.</p>
+        <p>Walton, G. M. (2014). Wise psychological interventions. <em>Current Directions in Psychological Science</em>, 23(1), 73&ndash;82.</p>
         <p>Zaccaro, A. et al. (2018). How breath-control can change your life. <em>Frontiers in Human Neuroscience</em>, 12, 353.</p>
       </div>
 
