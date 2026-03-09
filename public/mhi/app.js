@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 // MHI — A Moment
-// Cinematic landing → breathing game → job search
+// Cinematic landing → guided breath → game carousel → job search
 // Every pixel intentional.
 // ═══════════════════════════════════════════════════════════════
 
@@ -43,29 +43,12 @@
   var timerExpired = false;
   var freePlay = false;
 
-  // Grid: 8 cols x 14 rows
-  var COLS = 8, ROWS = 14;
-  var CELL = 0;
-  var grid = [];
-  var currentPiece = null;
-  var dropTimer = 0;
-  var DROP_INTERVAL = 1000;
-  var rowsCleared = 0;
+  // Game manager
+  var allGames = [];
+  var currentGameIndex = 0;
+  var activeGame = null;
+  var ctrlBtns = [];
   var floatingWords = [];
-  var gameWords = ['breathe', 'pause', "you're here", 'you matter', 'steady', 'ready', 'begin again'];
-  var wordIndex = 0;
-
-  // Piece definitions — muted natural tones
-  var PIECES = [
-    { shape: [[1,1],[1,1]], color: '#c4a35a' },
-    { shape: [[1,1,1]], color: '#7a9e8e' },
-    { shape: [[1,1,1,1]], color: '#6a8fa7' },
-    { shape: [[1,1,0],[0,1,1]], color: '#b07a7a' },
-    { shape: [[0,1,1],[1,1,0]], color: '#8a9eae' },
-    { shape: [[1,0],[1,0],[1,1]], color: '#b8856e' },
-    { shape: [[0,1],[0,1],[1,1]], color: '#8e7299' },
-    { shape: [[1,1,1],[0,1,0]], color: '#a69076' },
-  ];
 
   // ─── Helpers ────────────────────────────────────────────
   function $(id) { return document.getElementById(id); }
@@ -89,6 +72,10 @@
   function init() {
     log('init');
 
+    // Load games from games.js
+    allGames = window.MHI_GAMES || [];
+    if (allGames.length > 0) activeGame = allGames[0];
+
     // Tabs
     each('.tab', function (t) { t.addEventListener('click', function () { switchTab(t.getAttribute('data-tab')); }); });
 
@@ -96,11 +83,13 @@
     $('beginBtn').addEventListener('click', beginTransition);
     $('skipBtn').addEventListener('click', skipToSearch);
 
-    // Game controls
-    $('ctrlLeft').addEventListener('click', function () { movePiece(-1); });
-    $('ctrlRight').addEventListener('click', function () { movePiece(1); });
-    $('ctrlRotate').addEventListener('click', function () { rotatePiece(); });
-    $('ctrlSlam').addEventListener('click', function () { slamPiece(); });
+    // Collect control buttons and wire up generic handlers
+    each('#controlsBar .ctrl', function (btn) { ctrlBtns.push(btn); });
+    for (var i = 0; i < ctrlBtns.length; i++) {
+      (function (idx) {
+        ctrlBtns[idx].addEventListener('click', function () { handleControl(idx); });
+      })(i);
+    }
 
     // Prevent double-tap zoom on controls
     each('.ctrl', function (btn) {
@@ -113,8 +102,38 @@
 
     // Game overlay
     $('keepPlayingBtn').addEventListener('click', keepPlaying);
+    $('tryDifferentBtn').addEventListener('click', function () {
+      $('gameOverlay').classList.remove('vis');
+      gamePaused = false;
+      switchToNextGame();
+    });
     $('readyBtn').addEventListener('click', readyToSearch);
     $('freeplayExit').addEventListener('click', readyToSearch);
+    $('freeplayNext').addEventListener('click', function () { switchToNextGame(); });
+
+    // Canvas setup
+    gameCanvas = $('gameCanvas');
+    gameCtx = gameCanvas.getContext('2d');
+
+    // Canvas tap handler for tap-based games (garden, etc.)
+    gameCanvas.addEventListener('click', function (e) {
+      if (!gameRunning || gamePaused || !activeGame || !activeGame.onTap) return;
+      var rect = gameCanvas.getBoundingClientRect();
+      var x = (e.clientX - rect.left) * (gameCanvas.width / rect.width);
+      var y = (e.clientY - rect.top) * (gameCanvas.height / rect.height);
+      var events = activeGame.onTap(x, y);
+      if (events) for (var j = 0; j < events.length; j++) addFloatingWord(events[j]);
+    });
+    gameCanvas.addEventListener('touchend', function (e) {
+      if (!gameRunning || gamePaused || !activeGame || !activeGame.onTap) return;
+      e.preventDefault();
+      var touch = e.changedTouches[0];
+      var rect = gameCanvas.getBoundingClientRect();
+      var x = (touch.clientX - rect.left) * (gameCanvas.width / rect.width);
+      var y = (touch.clientY - rect.top) * (gameCanvas.height / rect.height);
+      var events = activeGame.onTap(x, y);
+      if (events) for (var j = 0; j < events.length; j++) addFloatingWord(events[j]);
+    }, { passive: false });
 
     // Picks
     var ni = $('nameInput');
@@ -149,24 +168,53 @@
     // Tooltip system
     initTooltips();
 
-    // Canvas setup
-    gameCanvas = $('gameCanvas');
-    gameCtx = gameCanvas.getContext('2d');
-    sizeCanvas();
-    window.addEventListener('resize', sizeCanvas);
-
     // Start cinematic reveal
     revealLanding();
   }
 
+  // ─── Game manager ─────────────────────────────────────────
+
+  function handleControl(idx) {
+    if (!gameRunning || gamePaused || !activeGame) return;
+    var events = activeGame.onControl(idx);
+    if (events) for (var i = 0; i < events.length; i++) addFloatingWord(events[i]);
+  }
+
+  function switchToGame(idx) {
+    currentGameIndex = idx;
+    activeGame = allGames[idx];
+    log('switching to game:', activeGame.id);
+    updateControls();
+  }
+
+  function switchToNextGame() {
+    var next = (currentGameIndex + 1) % allGames.length;
+    switchToGame(next);
+    // Restart the game with the new game
+    restartCurrentGame();
+  }
+
+  function updateControls() {
+    if (!activeGame) return;
+    var controls = activeGame.controls;
+    for (var i = 0; i < ctrlBtns.length; i++) {
+      if (i < controls.length && controls[i]) {
+        ctrlBtns[i].style.display = '';
+        ctrlBtns[i].querySelector('svg').innerHTML = controls[i].icon;
+        ctrlBtns[i].setAttribute('aria-label', controls[i].label);
+      } else {
+        ctrlBtns[i].style.display = 'none';
+      }
+    }
+  }
+
   function sizeCanvas() {
+    if (!activeGame) return;
     var maxW = Math.min(window.innerWidth - 48, 280);
     var maxH = window.innerHeight - 220;
-    CELL = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
-    CELL = Math.max(CELL, 18);
-    CELL = Math.min(CELL, 32);
-    gameCanvas.width = COLS * CELL;
-    gameCanvas.height = ROWS * CELL;
+    var dims = activeGame.start(maxW, maxH);
+    gameCanvas.width = dims.w;
+    gameCanvas.height = dims.h;
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -250,38 +298,33 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // GAME ENGINE
+  // GAME ENGINE — delegates to active game
   // ═══════════════════════════════════════════════════════════
 
   function startGame() {
-    log('starting game');
+    log('starting game:', activeGame ? activeGame.id : 'none');
     stage = 'game';
     $('stageGame').classList.add('active');
 
-    grid = [];
-    for (var r = 0; r < ROWS; r++) {
-      grid[r] = [];
-      for (var c = 0; c < COLS; c++) grid[r][c] = null;
-    }
+    // Initialize game and size canvas
+    updateControls();
+    var maxW = Math.min(window.innerWidth - 48, 280);
+    var maxH = window.innerHeight - 220;
+    var dims = activeGame.start(maxW, maxH);
+    gameCanvas.width = dims.w;
+    gameCanvas.height = dims.h;
 
-    // Pre-fill bottom rows so the board starts mid-puzzle
-    seedGrid();
-
-    rowsCleared = 0;
-    wordIndex = 0;
     breathTimer = 0;
     breathPhase = 'in';
-    dropTimer = 0;
     floatingWords = [];
     timerExpired = false;
     freePlay = false;
     gamePaused = false;
     gameRunning = true;
     gameStartTime = Date.now();
-    currentPiece = spawnPiece();
 
     $('gameOverlay').classList.remove('vis');
-    $('freeplayExit').classList.remove('vis');
+    $('freeplayBar').classList.remove('vis');
     $('timerTrack').style.display = '';
 
     // Initialize breath circle
@@ -291,47 +334,35 @@
     gameLoop(Date.now());
   }
 
-  // Seed bottom rows with blocks and gaps — gives the user something to puzzle into
-  function seedGrid() {
-    var colors = [];
-    for (var i = 0; i < PIECES.length; i++) colors.push(PIECES[i].color);
+  function restartCurrentGame() {
+    // Stop current loop, restart with (possibly different) active game
+    gameRunning = false;
+    if (gameAnimFrame) cancelAnimationFrame(gameAnimFrame);
 
-    // Fill rows ROWS-5 through ROWS-1 (bottom 5 rows)
-    for (var r = ROWS - 5; r < ROWS; r++) {
-      // Rows closer to bottom are more filled
-      var density = 0.4 + (r - (ROWS - 5)) * 0.08;
-      for (var c = 0; c < COLS; c++) {
-        if (Math.random() < density) {
-          grid[r][c] = colors[Math.floor(Math.random() * colors.length)];
-        }
-      }
-    }
+    var maxW = Math.min(window.innerWidth - 48, 280);
+    var maxH = window.innerHeight - 220;
+    var dims = activeGame.start(maxW, maxH);
+    gameCanvas.width = dims.w;
+    gameCanvas.height = dims.h;
+    updateControls();
 
-    // Ensure no row is completely full (so the game doesn't immediately clear)
-    for (var r2 = ROWS - 5; r2 < ROWS; r2++) {
-      var full = true;
-      for (var c2 = 0; c2 < COLS; c2++) {
-        if (!grid[r2][c2]) { full = false; break; }
-      }
-      if (full) {
-        // Remove 2-3 random blocks
-        var gaps = 2 + Math.floor(Math.random() * 2);
-        for (var g = 0; g < gaps; g++) {
-          grid[r2][Math.floor(Math.random() * COLS)] = null;
-        }
-      }
-    }
-  }
+    breathTimer = 0;
+    breathPhase = 'in';
+    floatingWords = [];
+    timerExpired = false;
+    freePlay = false;
+    gamePaused = false;
+    gameRunning = true;
+    gameStartTime = Date.now();
 
-  function spawnPiece() {
-    var def = PIECES[Math.floor(Math.random() * PIECES.length)];
-    // Deep copy the shape so rotation doesn't mutate the template
-    var shape = [];
-    for (var r = 0; r < def.shape.length; r++) {
-      shape[r] = def.shape[r].slice();
-    }
-    var w = shape[0].length;
-    return { shape: shape, color: def.color, x: Math.floor((COLS - w) / 2), y: 0 };
+    $('gameOverlay').classList.remove('vis');
+    $('freeplayBar').classList.remove('vis');
+    $('timerTrack').style.display = '';
+
+    var circle = $('breathCircle');
+    if (circle) { circle.classList.remove('inhale', 'exhale'); circle.classList.add('inhale'); }
+
+    gameLoop(Date.now());
   }
 
   function gameLoop(lastTime) {
@@ -369,30 +400,30 @@
         }
       }
 
-      // Drop
-      if (!timerExpired || freePlay) {
-        dropTimer += dt;
-        if (dropTimer >= DROP_INTERVAL) {
-          dropTimer = 0;
-          if (currentPiece) {
-            if (!tryMove(currentPiece, 0, 1)) {
-              lockPiece(currentPiece);
-              checkRows();
-              currentPiece = spawnPiece();
-              if (!canPlace(currentPiece, currentPiece.x, currentPiece.y)) {
-                clearTopRows();
-                currentPiece.y = 0;
-              }
-            }
-          }
-        }
+      // Delegate tick to active game
+      if ((!timerExpired || freePlay) && activeGame) {
+        var events = activeGame.tick(dt);
+        if (events) for (var i = 0; i < events.length; i++) addFloatingWord(events[i]);
       }
 
       // Update floating words
       updateFloatingWords(now);
     }
 
-    drawGame();
+    // Draw
+    if (activeGame) {
+      activeGame.draw(gameCtx, gameCanvas.width, gameCanvas.height);
+    }
+
+    // Breathing overlay on canvas
+    var bCycle = breathTimer % (BREATH_IN + BREATH_OUT);
+    var bp = bCycle < BREATH_IN ? bCycle / BREATH_IN : 1 - (bCycle - BREATH_IN) / BREATH_OUT;
+    var ga = 0.01 + bp * 0.03;
+    gameCtx.fillStyle = 'rgba(122,158,142,' + ga + ')';
+    gameCtx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+    // Floating words overlay
+    drawFloatingWords();
 
     gameAnimFrame = requestAnimationFrame(function () { gameLoop(now); });
   }
@@ -409,7 +440,7 @@
     timerExpired = false;
     $('gameOverlay').classList.remove('vis');
     $('timerTrack').style.display = 'none';
-    $('freeplayExit').classList.add('vis');
+    $('freeplayBar').classList.add('vis');
   }
 
   function readyToSearch() {
@@ -434,137 +465,12 @@
     }, 800);
   }
 
-  // ─── Piece movement ─────────────────────────────────────
-  function tryMove(piece, dx, dy) {
-    var nx = piece.x + dx;
-    var ny = piece.y + dy;
-    if (canPlace(piece, nx, ny)) {
-      piece.x = nx;
-      piece.y = ny;
-      return true;
-    }
-    return false;
-  }
-
-  function canPlace(piece, px, py) {
-    var s = piece.shape;
-    for (var r = 0; r < s.length; r++) {
-      for (var c = 0; c < s[r].length; c++) {
-        if (s[r][c]) {
-          var gx = px + c, gy = py + r;
-          if (gx < 0 || gx >= COLS || gy >= ROWS) return false;
-          if (gy >= 0 && grid[gy][gx]) return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  function canPlaceShape(shape, px, py) {
-    for (var r = 0; r < shape.length; r++) {
-      for (var c = 0; c < shape[r].length; c++) {
-        if (shape[r][c]) {
-          var gx = px + c, gy = py + r;
-          if (gx < 0 || gx >= COLS || gy >= ROWS) return false;
-          if (gy >= 0 && grid[gy][gx]) return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  function lockPiece(piece) {
-    var s = piece.shape;
-    for (var r = 0; r < s.length; r++) {
-      for (var c = 0; c < s[r].length; c++) {
-        if (s[r][c]) {
-          var gy = piece.y + r, gx = piece.x + c;
-          if (gy >= 0 && gy < ROWS && gx >= 0 && gx < COLS) {
-            grid[gy][gx] = piece.color;
-          }
-        }
-      }
-    }
-  }
-
-  function movePiece(dx) {
-    if (!gameRunning || !currentPiece || gamePaused) return;
-    tryMove(currentPiece, dx, 0);
-  }
-
-  function rotatePiece() {
-    if (!gameRunning || !currentPiece || gamePaused) return;
-
-    var old = currentPiece.shape;
-    var rows = old.length;
-    var cols = old[0].length;
-    var rotated = [];
-    for (var c = 0; c < cols; c++) {
-      rotated[c] = [];
-      for (var r = rows - 1; r >= 0; r--) {
-        rotated[c].push(old[r][c]);
-      }
-    }
-
-    // Try placement: original position, then nudge left/right
-    var offsets = [0, -1, 1, -2, 2];
-    for (var i = 0; i < offsets.length; i++) {
-      if (canPlaceShape(rotated, currentPiece.x + offsets[i], currentPiece.y)) {
-        currentPiece.shape = rotated;
-        currentPiece.x += offsets[i];
-        return;
-      }
-    }
-    // Rotation doesn't fit — do nothing (no punishment)
-  }
-
-  function slamPiece() {
-    if (!gameRunning || !currentPiece || gamePaused) return;
-    // Hard drop: move piece down as far as it can go
-    while (tryMove(currentPiece, 0, 1)) { /* keep dropping */ }
-    lockPiece(currentPiece);
-    checkRows();
-    currentPiece = spawnPiece();
-    if (!canPlace(currentPiece, currentPiece.x, currentPiece.y)) {
-      clearTopRows();
-      currentPiece.y = 0;
-    }
-    dropTimer = 0;
-  }
-
-  function checkRows() {
-    for (var r = ROWS - 1; r >= 0; r--) {
-      var full = true;
-      for (var c = 0; c < COLS; c++) {
-        if (!grid[r][c]) { full = false; break; }
-      }
-      if (full) {
-        // Add floating word at this row
-        addFloatingWord(r);
-
-        grid.splice(r, 1);
-        var newRow = [];
-        for (var c2 = 0; c2 < COLS; c2++) newRow.push(null);
-        grid.unshift(newRow);
-        rowsCleared++;
-        r++;
-      }
-    }
-  }
-
-  function clearTopRows() {
-    for (var r = 0; r < 4; r++) {
-      for (var c = 0; c < COLS; c++) grid[r][c] = null;
-    }
-  }
-
   // ─── Floating words ─────────────────────────────────────
-  function addFloatingWord(row) {
-    var word = gameWords[wordIndex % gameWords.length];
-    wordIndex++;
+  function addFloatingWord(ev) {
+    if (!ev || !ev.text) return;
     floatingWords.push({
-      text: word,
-      y: row * CELL,
+      text: ev.text,
+      y: ev.y || gameCanvas.height / 2,
       alpha: 1.0,
       born: Date.now(),
     });
@@ -583,92 +489,19 @@
     }
   }
 
-  // ─── Rendering ──────────────────────────────────────────
-  function drawGame() {
+  function drawFloatingWords() {
     var ctx = gameCtx;
-    var w = gameCanvas.width;
-    var h = gameCanvas.height;
-
-    // Background
-    ctx.fillStyle = '#141820';
-    ctx.fillRect(0, 0, w, h);
-
-    // Subtle grid
-    ctx.strokeStyle = 'rgba(37,42,56,0.25)';
-    ctx.lineWidth = 0.5;
-    for (var c = 0; c <= COLS; c++) {
-      ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, h); ctx.stroke();
-    }
-    for (var r = 0; r <= ROWS; r++) {
-      ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(w, r * CELL); ctx.stroke();
-    }
-
-    // Placed blocks
-    for (var r2 = 0; r2 < ROWS; r2++) {
-      for (var c2 = 0; c2 < COLS; c2++) {
-        if (grid[r2][c2]) drawBlock(ctx, c2, r2, grid[r2][c2], 1);
-      }
-    }
-
-    // Current piece
-    if (currentPiece && !gamePaused) {
-      var s = currentPiece.shape;
-      for (var pr = 0; pr < s.length; pr++) {
-        for (var pc = 0; pc < s[pr].length; pc++) {
-          if (s[pr][pc]) {
-            drawBlock(ctx, currentPiece.x + pc, currentPiece.y + pr, currentPiece.color, 1);
-          }
-        }
-      }
-    }
-
-    // Breathing overlay
-    var cycle = breathTimer % (BREATH_IN + BREATH_OUT);
-    var bp = cycle < BREATH_IN ? cycle / BREATH_IN : 1 - (cycle - BREATH_IN) / BREATH_OUT;
-    var ga = 0.01 + bp * 0.03;
-    ctx.fillStyle = 'rgba(122,158,142,' + ga + ')';
-    ctx.fillRect(0, 0, w, h);
-
-    // Floating words
-    for (var fi = 0; fi < floatingWords.length; fi++) {
-      var fw = floatingWords[fi];
+    var cw = gameCanvas.width;
+    for (var i = 0; i < floatingWords.length; i++) {
+      var fw = floatingWords[i];
       ctx.save();
       ctx.globalAlpha = fw.alpha * 0.8;
-      ctx.font = '300 ' + Math.floor(CELL * 0.65) + 'px "Cormorant Garamond", Georgia, serif';
+      ctx.font = '300 14px "Cormorant Garamond", Georgia, serif';
       ctx.fillStyle = '#c4a35a';
       ctx.textAlign = 'center';
-      ctx.fillText(fw.text, w / 2, fw.y);
+      ctx.fillText(fw.text, cw / 2, fw.y);
       ctx.restore();
     }
-  }
-
-  function drawBlock(ctx, x, y, color, alpha) {
-    var px = x * CELL + 1;
-    var py = y * CELL + 1;
-    var s = CELL - 2;
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-
-    // Body
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(px, py, s, s, 3);
-    } else {
-      ctx.rect(px, py, s, s);
-    }
-    ctx.fill();
-
-    // Highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(px + 2, py + 2, s - 4, 1);
-
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.fillRect(px + 2, py + s - 1, s - 4, 1);
-
-    ctx.restore();
   }
 
   // ═══════════════════════════════════════════════════════════
