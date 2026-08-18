@@ -645,7 +645,19 @@
     if (controller) opts.signal = controller.signal;
 
     fetch(WORKER + '/chat', opts)
-      .then(function (r) { if (tid) clearTimeout(tid); if (!r.ok) throw new Error('Server ' + r.status); return r.json(); })
+      // The Worker returns a complete, usable payload even on error responses —
+      // use it instead of discarding the body for a bare status code.
+      .then(function (r) {
+        if (tid) clearTimeout(tid);
+        return r.json().then(function (data) {
+          if (!r.ok) {
+            if (!data || !data.message) throw new Error('Server ' + r.status);
+            log('worker degraded (' + r.status + '):', data.message);
+          }
+          if (data.usajobsError) log('USAJobs feed error:', data.usajobsError);
+          return data;
+        }, function () { throw new Error('Server ' + r.status); });
+      })
       .then(function (data) {
         if (data.extraction) {
           extraction.interest = data.extraction.interest || extraction.interest;

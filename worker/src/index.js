@@ -1,9 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// THE GATE WORKER v6 — Federal job matchmaker.
+// THE GATE WORKER v7 — Federal job matchmaker.
 // USAJobs.gov API + Claude → converge on a specific job.
+// JavaScript version — identical logic to index.ts.
 // ═══════════════════════════════════════════════════════════════
 
-// ─── CORS (always allow — this is a public API) ─────────────
+const DEFAULT_MODEL = 'claude-opus-5';
+const DEFAULT_EFFORT = 'low';
+
+// ─── CORS (always allow — public API) ────────────────────────
 
 function corsHeaders(request) {
   const origin = request.headers.get('Origin') || '*';
@@ -26,7 +30,7 @@ function json(data, request, status) {
 
 async function searchUSAJobs(keyword, location, env) {
   if (!env.USAJOBS_API_KEY || !env.USAJOBS_EMAIL) {
-    return { items: [], total: 0, missingKeys: true };
+    return { items: [], total: 0, missingKeys: true, error: 'USAJOBS_API_KEY and/or USAJOBS_EMAIL are not set on the Worker.' };
   }
 
   const params = new URLSearchParams();
@@ -49,13 +53,25 @@ async function searchUSAJobs(keyword, location, env) {
         'Host': 'data.usajobs.gov',
       },
     });
-    if (!res.ok) return { items: [], total: 0 };
+
+    // Surface the real failure instead of returning an empty result set that
+    // looks identical to a legitimately empty search.
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      const hint = res.status === 401
+        ? ' (USAJobs rejected the credentials — check that USAJOBS_API_KEY is the key they emailed you and USAJOBS_EMAIL is the address you registered with.)'
+        : '';
+      return {
+        items: [], total: 0, status: res.status,
+        error: `USAJobs API ${res.status} ${res.statusText}: ${body.slice(0, 300)}${hint}`,
+      };
+    }
 
     const data = await res.json();
     const results = data?.SearchResult?.SearchResultItems || [];
     const total = data?.SearchResult?.SearchResultCountAll || 0;
 
-    const items = results.map(r => {
+    const items = results.map((r) => {
       const d = r.MatchedObjectDescriptor || {};
       const pay = d.PositionRemuneration?.[0] || {};
       const loc = d.PositionLocation?.[0] || {};
@@ -75,9 +91,9 @@ async function searchUSAJobs(keyword, location, env) {
         qualifications: d.QualificationSummary ? d.QualificationSummary.slice(0, 300) : '',
       };
     });
-    return { items, total };
-  } catch {
-    return { items: [], total: 0 };
+    return { items, total, status: res.status };
+  } catch (e) {
+    return { items: [], total: 0, error: 'USAJobs request failed: ' + (e?.message || String(e)) };
   }
 }
 
@@ -88,13 +104,14 @@ function fmtDate(iso) {
 
 function fmtSalary(min, max, period) {
   if (!min && !max) return '';
-  const f = n => { const v = parseInt(n); return isNaN(v) ? n : '$' + v.toLocaleString('en-US'); };
+  const f = (n) => { const v = parseInt(n); return isNaN(v) ? n : '$' + v.toLocaleString('en-US'); };
   const range = min && max ? f(min) + ' – ' + f(max) : f(min || max);
   const per = period === 'Per Year' ? '/yr' : period === 'Per Hour' ? '/hr' : '/' + (period || 'yr');
   return range + per;
 }
 
 function jobsForClaude(result) {
+  if (result.error) return `\n[USAJOBS UNAVAILABLE: ${result.error}]\n`;
   if (!result.items.length) return '\n[USAJOBS: No results found for this search.]\n';
   let t = `\n[USAJOBS LIVE DATA: ${result.total} total positions. Top ${result.items.length} shown.]\n`;
   result.items.forEach((j, i) => {
@@ -109,11 +126,38 @@ function jobsForClaude(result) {
   return t;
 }
 
-function searchUrl(keyword, location) {
+function buildSearchUrl(keyword, location) {
   const p = new URLSearchParams();
   if (keyword && keyword !== 'anything') p.set('k', keyword);
   if (location && location !== 'Anywhere' && location !== 'near me') p.set('l', location);
   return 'https://www.usajobs.gov/Search/Results?' + p.toString();
+}
+
+// ─── CLAUDE RESPONSE PARSING ─────────────────────────────────
+
+// Claude returns a list of content blocks. With thinking enabled the first
+// block is a thinking block, so pick the text blocks explicitly rather than
+// assuming content[0].
+function textFromClaude(data) {
+  const blocks = Array.isArray(data?.content) ? data.content : [];
+  return blocks
+    .filter((b) => b && b.type === 'text')
+    .map((b) => b.text || '')
+    .join('')
+    .trim();
+}
+
+// The model is asked for bare JSON, but tolerate a fenced or prose-wrapped
+// object rather than dropping to the fallback over a stray backtick.
+function extractJson(text) {
+  let t = (text || '').trim();
+  if (t.startsWith('```')) {
+    t = t.replace(/^```[a-zA-Z]*\s*/, '').replace(/```\s*$/, '').trim();
+  }
+  const first = t.indexOf('{');
+  const last = t.lastIndexOf('}');
+  if (first !== -1 && last > first) t = t.slice(first, last + 1);
+  return t;
 }
 
 // ─── CLAUDE SYSTEM PROMPT ────────────────────────────────────
@@ -130,6 +174,8 @@ YOUR JOB IN EACH RESPONSE:
 3. CONVERGENCE: When you've identified the best match, go hard on it. "This is the one." Give them the pitch — title, agency, pay, location, why it fits THEM specifically. Set topPick to that job's index number.
 
 You understand: GS/GL grades, locality pay adjustments, federal benefits, PSLF eligibility, security clearance requirements, how to translate private sector experience into federal qualification language, and that government job titles are weird ("Customer Service Rep" = "Contact Representative", "Warehouse" = "Materials Handler" or "Supply Technician").
+
+If the listings are marked UNAVAILABLE, say plainly that the live federal job feed is down right now and point them at usajobs.gov — do not invent positions.
 
 TONE: 2-4 sentences per message. Tight. Alive. Every message either reveals something specific about a job or asks something that helps you find the right one. No filler. No "great question!" No "I'd be happy to help."
 
@@ -157,7 +203,7 @@ FIELD RULES:
 
 // ─── FALLBACK ──────────────────────────────────────────────────
 
-function fallback(name, interest, location) {
+function buildFallback(name, interest, location) {
   const n = name || 'friend';
   const i = (interest || 'jobs').toLowerCase();
   const l = location || 'anywhere';
@@ -166,9 +212,9 @@ function fallback(name, interest, location) {
     extraction: { interest: i, location: l },
     signal: 20, topPick: null, topPickJob: null,
     showJobs: [],
+    jobs: [], totalResults: 0, usajobsError: null,
     suggestions: ['What did you find?', 'I have experience', 'Remote only', 'Best paying?'],
-    jobs: [], totalResults: 0,
-    searchUrl: searchUrl(i, l),
+    searchUrl: buildSearchUrl(i, l),
     safetyFallbackUsed: true, _raw: '',
   };
 }
@@ -177,14 +223,12 @@ function fallback(name, interest, location) {
 
 export default {
   async fetch(request, env) {
-    // CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(request) });
     }
 
     const url = new URL(request.url);
 
-    // Geo detection
     if (url.pathname === '/geo') {
       const cf = request.cf || {};
       return json({
@@ -194,48 +238,63 @@ export default {
       }, request);
     }
 
-    // Health check
+    // /health reports key presence AND actually exercises the USAJobs
+    // connection, so a broken feed can be diagnosed without the chat flow.
+    // Pass ?deep=0 to skip the live probe.
     if (url.pathname === '/health') {
+      let usajobs = { checked: false };
+      if (url.searchParams.get('deep') !== '0') {
+        const probe = await searchUSAJobs('nurse', '', env);
+        usajobs = {
+          checked: true,
+          ok: !probe.error,
+          status: probe.status ?? null,
+          totalResults: probe.total,
+          returned: probe.items.length,
+          error: probe.error || null,
+        };
+      }
       return json({
-        status: 'ok', version: 6,
+        status: 'ok', version: 7,
+        model: env.CLAUDE_MODEL || DEFAULT_MODEL,
         hasAnthropicKey: !!env.ANTHROPIC_API_KEY,
         hasUsajobsKey: !!env.USAJOBS_API_KEY,
         hasUsajobsEmail: !!env.USAJOBS_EMAIL,
         allKeysConfigured: !!(env.ANTHROPIC_API_KEY && env.USAJOBS_API_KEY && env.USAJOBS_EMAIL),
+        usajobs,
       }, request);
     }
 
-    // Chat endpoint
     if (url.pathname !== '/chat' || request.method !== 'POST') {
       return json({ error: 'Not found' }, request, 404);
     }
 
     if (!env.ANTHROPIC_API_KEY) {
-      const fb = fallback('friend', 'jobs', 'anywhere');
+      const fb = buildFallback('friend', 'jobs', 'anywhere');
       fb.message = 'Worker running but ANTHROPIC_API_KEY not set. Add it in Cloudflare Dashboard → Workers → Settings → Variables.';
       return json(fb, request);
     }
 
+    // Declared outside the try so a Claude failure still returns the jobs we
+    // already fetched from USAJobs.
+    let jobResult = { items: [], total: 0 };
+    let body = {};
+
     try {
-      const body = await request.json();
+      body = await request.json();
       const { name, interest_hint, location_hint, history, cachedJobs, forceSearch } = body;
 
-      // 1. Get jobs
-      let jobResult;
       if (cachedJobs && cachedJobs.length > 0 && !forceSearch) {
         jobResult = { items: cachedJobs, total: cachedJobs.length };
       } else {
         jobResult = await searchUSAJobs(interest_hint, location_hint, env);
       }
 
-      let jobCtx = jobsForClaude(jobResult);
-      if (jobResult.missingKeys) {
-        jobCtx += '\n[SYSTEM: USAJobs API keys not configured. Tell user live data requires setup.]\n';
-      }
-      const sUrl = searchUrl(interest_hint, location_hint);
-      const model = env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+      const jobCtx = jobsForClaude(jobResult);
+      const sUrl = buildSearchUrl(interest_hint, location_hint);
+      const model = env.CLAUDE_MODEL || DEFAULT_MODEL;
+      const effort = env.CLAUDE_EFFORT || DEFAULT_EFFORT;
 
-      // 2. Build messages
       const ctx = `My name is ${name || 'friend'}. I'm interested in ${interest_hint || 'work'} in ${location_hint || 'anywhere'}.\n${jobCtx}`;
       const messages = [{ role: 'user', content: ctx }];
       if (history && history.length > 0) {
@@ -245,7 +304,14 @@ export default {
         messages.push({ role: 'user', content: 'Continue.' });
       }
 
-      // 3. Call Claude
+      const payload = {
+        model,
+        max_tokens: 3000,
+        system: SYSTEM,
+        messages,
+      };
+      if (effort && effort !== 'off') payload.output_config = { effort };
+
       const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -253,7 +319,7 @@ export default {
           'x-api-key': env.ANTHROPIC_API_KEY,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({ model, max_tokens: 500, system: SYSTEM, messages }),
+        body: JSON.stringify(payload),
       });
 
       if (!claudeRes.ok) {
@@ -262,18 +328,18 @@ export default {
       }
 
       const claudeData = await claudeRes.json();
-      const rawText = claudeData.content?.[0]?.text || '';
+      const rawText = textFromClaude(claudeData);
 
-      // 4. Parse Claude's JSON response
       let parsed;
       try {
-        const obj = JSON.parse(rawText);
+        if (claudeData.stop_reason === 'refusal') throw new Error('refusal');
+        const obj = JSON.parse(extractJson(rawText));
         const sig = Math.min(99, Math.max(1, Number(obj.signal) || 30));
         const tp = (obj.topPick !== null && obj.topPick !== undefined &&
                     obj.topPick >= 0 && obj.topPick < jobResult.items.length)
           ? Number(obj.topPick) : null;
         const show = Array.isArray(obj.showJobs)
-          ? obj.showJobs.filter(i => typeof i === 'number' && i >= 0 && i < jobResult.items.length).slice(0, 5)
+          ? obj.showJobs.filter((i) => typeof i === 'number' && i >= 0 && i < jobResult.items.length).slice(0, 5)
           : [];
 
         parsed = {
@@ -285,22 +351,23 @@ export default {
           signal: sig,
           topPick: tp,
           topPickJob: tp !== null ? jobResult.items[tp] : null,
-          showJobs: show.map(i => jobResult.items[i]).filter(Boolean),
+          showJobs: show.map((i) => jobResult.items[i]).filter(Boolean),
           suggestions: Array.isArray(obj.suggestions)
-            ? obj.suggestions.map(s => String(s).slice(0, 50)).slice(0, 4)
+            ? obj.suggestions.map((s) => String(s).slice(0, 50)).slice(0, 4)
             : ['Tell me more', 'What else?'],
           refineSearch: !!obj.refineSearch,
           jobs: jobResult.items.slice(0, 20),
           totalResults: jobResult.total,
+          usajobsError: jobResult.error || null,
           searchUrl: sUrl,
           safetyFallbackUsed: false,
           _raw: rawText,
         };
       } catch {
-        // Claude returned non-JSON — use fallback with real jobs
-        const fb = fallback(name, interest_hint, location_hint);
+        const fb = buildFallback(name, interest_hint, location_hint);
         fb.jobs = jobResult.items.slice(0, 20);
         fb.totalResults = jobResult.total;
+        fb.usajobsError = jobResult.error || null;
         fb.showJobs = jobResult.items.slice(0, 3);
         fb.searchUrl = sUrl;
         fb._raw = rawText;
@@ -309,10 +376,15 @@ export default {
 
       return json(parsed, request);
     } catch (e) {
-      // Return error message so frontend can display it
-      const fb = fallback('friend', 'jobs', 'anywhere');
+      // Keep whatever USAJobs returned — a Claude outage should not also blank
+      // out live job listings we already have in hand.
+      const fb = buildFallback(body?.name, body?.interest_hint, body?.location_hint);
       fb.message = 'Something went wrong: ' + (e.message || 'unknown error') + '. Try again in a moment.';
-      fb._raw = JSON.stringify(fb);
+      fb.jobs = jobResult.items.slice(0, 20);
+      fb.totalResults = jobResult.total;
+      fb.showJobs = jobResult.items.slice(0, 3);
+      fb.usajobsError = jobResult.error || null;
+      fb._raw = '';
       return json(fb, request, 500);
     }
   },
