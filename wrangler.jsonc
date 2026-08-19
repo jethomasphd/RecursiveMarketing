@@ -1,11 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // API Worker only. The static site in public/ is served by the SEPARATE
+  // Cloudflare Pages project "recursive-marketing" (recursive-marketing.pages.dev),
+  // which auto-deploys from GitHub. Deploying this config does NOT touch Pages,
+  // and `/` on the workers.dev URL returning 404 is expected — the Worker only
+  // answers /chat, /health and /geo.
   "name": "recursive-marketing-worker",
-  // Both `main` and `assets` must be present in EVERY config that deploys this
-  // Worker. A deploy from a config missing one of them replaces the live
-  // Worker with a partial one — an assets-only deploy makes /chat return 404
-  // (the job search "loses its API connection"), and a Worker-only deploy
-  // makes the site itself 404.
   "main": "worker/src/index.ts",
   "compatibility_date": "2025-09-27",
   "compatibility_flags": [
@@ -14,13 +14,10 @@
   "observability": {
     "enabled": true
   },
-  "assets": {
-    "directory": "public"
-  },
   "vars": {
     "ALLOWED_ORIGINS": ""
   }
-  // Secrets — set once via wrangler or the Cloudflare Dashboard:
+  // Secrets — set once via the Cloudflare Dashboard or wrangler:
   //   wrangler secret put ANTHROPIC_API_KEY
   //   wrangler secret put USAJOBS_API_KEY
   //   wrangler secret put USAJOBS_EMAIL

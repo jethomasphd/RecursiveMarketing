@@ -1,0 +1,12 @@
+{
+  "name": "recursive-marketing",
+  "private": true,
+  "description": "Federal job matchmaker — Cloudflare Worker (USAJobs + Claude). Static site deploys separately via Cloudflare Pages.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.124.0"
+  }
+}
