@@ -1,10 +1,23 @@
+# Deploying from this directory is equivalent to deploying from the repo root
+# (../wrangler.jsonc). Both configs target the SAME Worker name, so each one
+# must define `main` AND `assets` — otherwise a deploy from here silently
+# replaces the live Worker with a partial one and takes down either the site
+# or the /chat API. Prefer deploying from the repo root.
 name = "recursive-marketing-worker"
 main = "src/index.ts"
-compatibility_date = "2024-09-23"
+compatibility_date = "2025-09-27"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "../public"
+
+[observability]
+enabled = true
 
 [vars]
 ALLOWED_ORIGINS = ""
-# CLAUDE_MODEL = "claude-sonnet-4-20250514"
+# CLAUDE_MODEL  = "claude-opus-5"   # optional override
+# CLAUDE_EFFORT = "low"             # low | medium | high | xhigh | max | off
 
 # Secrets — set via wrangler or Cloudflare Dashboard:
 #   wrangler secret put ANTHROPIC_API_KEY

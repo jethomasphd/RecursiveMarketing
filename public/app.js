@@ -263,11 +263,22 @@
       .then(function (r) {
         if (timeoutId) clearTimeout(timeoutId);
         log('response status:', r.status);
-        if (!r.ok) throw new Error('Server returned ' + r.status);
-        return r.json();
+        // The Worker returns a complete, usable payload even on error
+        // responses. Use it instead of discarding the body for a bare status
+        // code — otherwise a Claude hiccup blanks out live USAJobs results.
+        return r.json().then(function (data) {
+          if (!r.ok) {
+            if (!data || !data.message) throw new Error('Server returned ' + r.status);
+            log('worker degraded (' + r.status + '):', data.message);
+          }
+          return data;
+        }, function () {
+          throw new Error('Server returned ' + r.status);
+        });
       })
       .then(function (data) {
         log('parsed response, message length:', (data.message || '').length, 'jobs:', (data.jobs || []).length);
+        if (data.usajobsError) log('USAJobs feed error:', data.usajobsError);
 
         if (data.extraction) {
           extraction.interest = data.extraction.interest || extraction.interest;

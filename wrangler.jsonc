@@ -1,14 +1,31 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "recursive-marketing-worker",
+  // Both `main` and `assets` must be present in EVERY config that deploys this
+  // Worker. A deploy from a config missing one of them replaces the live
+  // Worker with a partial one — an assets-only deploy makes /chat return 404
+  // (the job search "loses its API connection"), and a Worker-only deploy
+  // makes the site itself 404.
+  "main": "worker/src/index.ts",
   "compatibility_date": "2025-09-27",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true
   },
   "assets": {
     "directory": "public"
   },
-  "compatibility_flags": [
-    "nodejs_compat"
-  ]
+  "vars": {
+    "ALLOWED_ORIGINS": ""
+  }
+  // Secrets — set once via wrangler or the Cloudflare Dashboard:
+  //   wrangler secret put ANTHROPIC_API_KEY
+  //   wrangler secret put USAJOBS_API_KEY
+  //   wrangler secret put USAJOBS_EMAIL
+  //
+  // Get a USAJobs API key at: https://developer.usajobs.gov/APIRequest/Index
+  //   USAJOBS_EMAIL   = the email you registered with
+  //   USAJOBS_API_KEY = the API key they email you
 }
