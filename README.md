@@ -15,12 +15,12 @@ public/               Static site (Cloudflare Pages or any static host)
   exit.html            Sealing animation + config-driven redirect
   exit-config.json     Editable exit behavior (redirect URL, copy)
 
-worker/               Cloudflare Worker (USAJobs + Claude proxy)
+worker/               Cloudflare Worker (USAJobs + Claude proxy) — API only
   src/index.ts         POST /chat → USAJobs API + Claude API → strict JSON
   src/index.js         Same logic in plain JS — keep in sync with index.ts
   wrangler.toml        Alternate config; mirrors the root wrangler.jsonc
 
-wrangler.jsonc        Canonical deploy config (Worker script + static assets)
+wrangler.jsonc        Canonical Worker deploy config (does not deploy public/)
 
 docs/
   DECISIONS.md         Design rationale: timing, call budget, fallbacks
@@ -82,11 +82,19 @@ Then set the Worker URL in `public/index.html`:
 
 ### 1. Deploy the Worker
 
-Deploy **from the repo root**. The root `wrangler.jsonc` ships the Worker script
-(`main`) and the static site (`assets`) in a single deployment.
+This project deploys as **two independent Cloudflare projects**:
+
+| | Cloudflare project | Serves | Deploys on merge? |
+|---|---|---|---|
+| **Site** | Pages — `recursive-marketing` | `public/` → `recursive-marketing.pages.dev` | Yes, if the Pages project is Git-connected |
+| **API** | Worker — `recursive-marketing-worker` | `/chat`, `/health`, `/geo` | Only if the **Worker** is Git-connected |
+
+They are separate. Merging to `main` updates whichever is connected to the repo —
+connecting one does **not** connect the other. `/` on the workers.dev URL
+returning `{"error":"Not found"}` is expected: the Worker is API-only.
 
 ```bash
-# From the repo root
+# From the repo root — deploys the Worker only, never Pages
 wrangler secret put ANTHROPIC_API_KEY   # paste your key when prompted
 wrangler secret put USAJOBS_API_KEY     # the key USAJobs emails you
 wrangler secret put USAJOBS_EMAIL       # the email you registered with USAJobs
@@ -94,14 +102,14 @@ wrangler secret put USAJOBS_EMAIL       # the email you registered with USAJobs
 wrangler deploy
 ```
 
-Note the deployed URL (e.g., `https://recursive-marketing-worker.your-subdomain.workers.dev`).
+To deploy the Worker from the Cloudflare dashboard instead, connect the repo at
+**Workers & Pages → `recursive-marketing-worker` → Settings → Builds → Connect**,
+with root directory blank and deploy command `npx wrangler deploy`. Take care to
+pick the Worker, not the similarly named Pages project — they sit in the same list.
 
-> **Deploy from the root, not from `worker/`.** Both configs target the same
-> Worker name, so each deploy fully replaces the last one. A config that defines
-> only `main` drops the static site; one that defines only `assets` drops the
-> API and `/chat` starts returning 404 — which shows up in the UI as
-> *"Could not connect to the job search."* Both configs now define both keys,
-> but the root is the canonical one.
+> **If the API is stale after a merge, check which project actually built.** A
+> green Pages build does not mean the Worker deployed; `/health` reports the
+> Worker's own `version`, so compare it against the code on `main`.
 
 ### 1a. Verify the connection
 

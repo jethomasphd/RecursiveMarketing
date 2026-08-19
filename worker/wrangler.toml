@@ -1,15 +1,14 @@
 # Deploying from this directory is equivalent to deploying from the repo root
-# (../wrangler.jsonc). Both configs target the SAME Worker name, so each one
-# must define `main` AND `assets` — otherwise a deploy from here silently
-# replaces the live Worker with a partial one and takes down either the site
-# or the /chat API. Prefer deploying from the repo root.
+# (../wrangler.jsonc) — same Worker, same script. Prefer the repo root so the
+# Cloudflare dashboard build (root directory = repo root) and a local
+# `wrangler deploy` stay in agreement.
+#
+# This Worker is API-only (/chat, /health, /geo). The static site in ../public
+# is served by the separate Cloudflare Pages project "recursive-marketing".
 name = "recursive-marketing-worker"
 main = "src/index.ts"
 compatibility_date = "2025-09-27"
 compatibility_flags = ["nodejs_compat"]
-
-[assets]
-directory = "../public"
 
 [observability]
 enabled = true
@@ -23,7 +22,3 @@ ALLOWED_ORIGINS = ""
 #   wrangler secret put ANTHROPIC_API_KEY
 #   wrangler secret put USAJOBS_API_KEY
 #   wrangler secret put USAJOBS_EMAIL
-#
-# Get a USAJobs API key at: https://developer.usajobs.gov/APIRequest/Index
-# USAJOBS_EMAIL = the email you registered with
-# USAJOBS_API_KEY = the API key they email you
