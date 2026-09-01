@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// THE GATE WORKER v7 — Federal job matchmaker.
+// THE GATE WORKER v8 — Federal job matchmaker.
 // USAJobs.gov API + Claude → converge on a specific job.
 // JavaScript version — identical logic to index.ts.
 // ═══════════════════════════════════════════════════════════════
@@ -28,70 +28,194 @@ function json(data, request, status) {
 
 // ─── USAJOBS API ───────────────────────────────────────────────
 
+// Documented casing. The lowercase /api/search alias also resolves today, but
+// only the capitalised path is in the reference.
+const USAJOBS_ENDPOINT = 'https://data.usajobs.gov/api/Search';
+
+// Chip values arrive capitalised ("Anything", "Remote", "Anywhere"), so every
+// sentinel test is case-insensitive. Comparing against lowercase literals sent
+// "Anything" through as a real keyword and searched for the word itself.
+const ANY_KEYWORD = new Set(['', 'anything', 'any', 'all']);
+const ANY_LOCATION = new Set(['', 'anywhere', 'any', 'near me', 'nearby']);
+
+// USAJobs work-schedule codes, for when the API returns a code but no Name.
+const SCHEDULE_CODES = {
+  '1': 'Full-time', '2': 'Part-time', '3': 'Shift Work',
+  '4': 'Intermittent', '5': 'Job Sharing', '6': 'Multiple Schedules',
+};
+
+// Pay-interval codes, for when PositionRemuneration drops Description.
+const RATE_INTERVALS = {
+  PA: 'Per Year', PH: 'Per Hour', PD: 'Per Day', PW: 'Per Week',
+  BW: 'Per Biweekly', PM: 'Per Month', WC: 'Without Compensation',
+};
+
+function norm(v) {
+  return (v || '').trim().toLowerCase();
+}
+
+function firstNonEmpty(...vals) {
+  for (const v of vals) {
+    if (v === undefined || v === null) continue;
+    const s = String(v).trim();
+    if (s) return s;
+  }
+  return '';
+}
+
+// PositionURI and ApplyURI come back as https://www.usajobs.gov:443/... — the
+// explicit port resolves, but it leaks into every job link the portal renders.
+function cleanUrl(u) {
+  return firstNonEmpty(u).replace('://www.usajobs.gov:443/', '://www.usajobs.gov/');
+}
+
+// ApplyURI has been published as a bare string, an array of strings, and an
+// array of objects. Take the first usable URL out of whichever shape arrives.
+function pickUrl(v) {
+  if (!v) return '';
+  if (typeof v === 'string') return cleanUrl(v);
+  if (Array.isArray(v)) {
+    for (const entry of v) {
+      const u = typeof entry === 'string'
+        ? entry
+        : firstNonEmpty(entry?.Uri, entry?.URI, entry?.Url, entry?.URL, entry?.Value);
+      if (u) return cleanUrl(u);
+    }
+  }
+  return '';
+}
+
+// Work schedule stopped arriving at PositionSchedule[0].Name. Read every shape
+// it has been published under before giving up on it.
+function pickSchedule(d) {
+  const entry = d?.PositionSchedule?.[0] || {};
+  const named = firstNonEmpty(entry.Name, entry.Value, entry.Description);
+  if (named) return named;
+  const code = firstNonEmpty(entry.Code, entry.ID);
+  if (code && SCHEDULE_CODES[code]) return SCHEDULE_CODES[code];
+  return firstNonEmpty(
+    d?.PositionScheduleDisplay,
+    d?.UserArea?.Details?.PositionSchedule?.[0]?.Name,
+    d?.UserArea?.Details?.WorkSchedule,
+    code,
+  );
+}
+
+function mapJob(r) {
+  const d = r?.MatchedObjectDescriptor || {};
+  const pay = d.PositionRemuneration?.[0] || {};
+  const loc = d.PositionLocation?.[0] || {};
+  const positionUrl = cleanUrl(d.PositionURI);
+  return {
+    title: d.PositionTitle || 'Untitled Position',
+    org: d.OrganizationName || '',
+    dept: d.DepartmentName || '',
+    location: firstNonEmpty(d.PositionLocationDisplay, loc.LocationName, loc.CityName),
+    salaryMin: firstNonEmpty(pay.MinimumRange),
+    salaryMax: firstNonEmpty(pay.MaximumRange),
+    salaryPeriod: firstNonEmpty(
+      pay.Description,
+      RATE_INTERVALS[String(pay.RateIntervalCode || '').toUpperCase()],
+      'Per Year',
+    ),
+    grade: firstNonEmpty(d.JobGrade?.[0]?.Code),
+    schedule: pickSchedule(d),
+    url: positionUrl,
+    applyUrl: pickUrl(d.ApplyURI) || positionUrl,
+    closing: d.ApplicationCloseDate ? fmtDate(d.ApplicationCloseDate) : '',
+    qualifications: d.QualificationSummary ? d.QualificationSummary.slice(0, 300) : '',
+  };
+}
+
+// `legacy` drops the two newer parameters so a rejected request can be retried
+// with the parameter set that was known to work.
+function buildParams(keyword, location, legacy) {
+  const params = new URLSearchParams();
+  if (keyword && !ANY_KEYWORD.has(norm(keyword))) params.set('Keyword', keyword);
+  if (norm(location) === 'remote') {
+    params.set('RemoteIndicator', 'True');
+  } else if (location && !ANY_LOCATION.has(norm(location))) {
+    params.set('LocationName', location);
+    params.set('Radius', '50');
+  }
+  params.set('ResultsPerPage', '20');
+  params.set('SortField', 'opendate');
+  params.set('SortDirection', 'desc');
+  // WhoMayApply is the legacy public filter and no longer restricts anything —
+  // merit-promotion-only announcements come back through it. USAJobs named
+  // HiringPath as its replacement, so that is what actually filters now.
+  // WhoMayApply stays for as long as it is still accepted.
+  params.set('WhoMayApply', 'Public');
+  if (!legacy) {
+    params.set('HiringPath', 'public');
+    // Without an explicit Fields the response arrives without PositionSchedule
+    // or ApplyURI.
+    params.set('Fields', 'Full');
+  }
+  return params;
+}
+
+async function runSearch(keyword, location, env, legacy) {
+  const res = await fetch(USAJOBS_ENDPOINT + '?' + buildParams(keyword, location, legacy).toString(), {
+    headers: {
+      'Authorization-Key': env.USAJOBS_API_KEY,
+      'User-Agent': env.USAJOBS_EMAIL,
+    },
+  });
+
+  // Surface the real failure instead of returning an empty result set that
+  // looks identical to a legitimately empty search.
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    const hint = res.status === 401
+      ? ' (USAJobs rejected the credentials — check that USAJOBS_API_KEY is the key they emailed you and USAJOBS_EMAIL is the address you registered with.)'
+      : '';
+    return {
+      items: [], total: 0, status: res.status,
+      error: `USAJobs API ${res.status} ${res.statusText}: ${body.slice(0, 300)}${hint}`,
+    };
+  }
+
+  const data = await res.json();
+  const results = data?.SearchResult?.SearchResultItems || [];
+  const total = Number(
+    data?.SearchResult?.SearchResultCountAll ??
+    data?.SearchResult?.SearchResultCount ??
+    results.length,
+  ) || 0;
+
+  return {
+    items: results.map(mapJob),
+    total,
+    status: res.status,
+    usedLegacyParams: legacy,
+    descriptorKeys: Object.keys(results[0]?.MatchedObjectDescriptor || {}),
+  };
+}
+
 async function searchUSAJobs(keyword, location, env) {
   if (!env.USAJOBS_API_KEY || !env.USAJOBS_EMAIL) {
     return { items: [], total: 0, missingKeys: true, error: 'USAJOBS_API_KEY and/or USAJOBS_EMAIL are not set on the Worker.' };
   }
 
-  const params = new URLSearchParams();
-  if (keyword && keyword !== 'anything') params.set('Keyword', keyword);
-  if (location && location !== 'Anywhere' && location !== 'near me' && location !== 'Remote') {
-    params.set('LocationName', location);
-    params.set('Radius', '50');
-  }
-  if (location === 'Remote') params.set('RemoteIndicator', 'True');
-  params.set('ResultsPerPage', '20');
-  params.set('WhoMayApply', 'Public');
-  params.set('SortField', 'opendate');
-  params.set('SortDirection', 'desc');
-
   try {
-    const res = await fetch('https://data.usajobs.gov/api/search?' + params.toString(), {
-      headers: {
-        'Authorization-Key': env.USAJOBS_API_KEY,
-        'User-Agent': env.USAJOBS_EMAIL,
-        'Host': 'data.usajobs.gov',
-      },
-    });
-
-    // Surface the real failure instead of returning an empty result set that
-    // looks identical to a legitimately empty search.
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      const hint = res.status === 401
-        ? ' (USAJobs rejected the credentials — check that USAJOBS_API_KEY is the key they emailed you and USAJOBS_EMAIL is the address you registered with.)'
-        : '';
-      return {
-        items: [], total: 0, status: res.status,
-        error: `USAJobs API ${res.status} ${res.statusText}: ${body.slice(0, 300)}${hint}`,
-      };
+    const result = await runSearch(keyword, location, env, false);
+    // A 4xx that is not an auth failure means USAJobs rejected one of the
+    // parameters. Retry once on the legacy set rather than handing back an
+    // error for a search that would still work without them.
+    const rejected = !!result.error && !!result.status &&
+      result.status >= 400 && result.status < 500 &&
+      result.status !== 401 && result.status !== 403 && result.status !== 429;
+    // HiringPath narrows the search, and an empty board is the exact symptom
+    // this change set out to fix. If it ever filters a search down to nothing,
+    // retry without it so the newer parameters can only ever add precision —
+    // never take results away.
+    const emptied = !result.error && result.items.length === 0;
+    if (rejected || emptied) {
+      const fallback = await runSearch(keyword, location, env, true);
+      if (!fallback.error && (rejected || fallback.items.length > 0)) return fallback;
     }
-
-    const data = await res.json();
-    const results = data?.SearchResult?.SearchResultItems || [];
-    const total = data?.SearchResult?.SearchResultCountAll || 0;
-
-    const items = results.map((r) => {
-      const d = r.MatchedObjectDescriptor || {};
-      const pay = d.PositionRemuneration?.[0] || {};
-      const loc = d.PositionLocation?.[0] || {};
-      return {
-        title: d.PositionTitle || 'Untitled Position',
-        org: d.OrganizationName || '',
-        dept: d.DepartmentName || '',
-        location: d.PositionLocationDisplay || loc.CityName || '',
-        salaryMin: pay.MinimumRange || '',
-        salaryMax: pay.MaximumRange || '',
-        salaryPeriod: pay.Description || 'Per Year',
-        grade: d.JobGrade?.[0]?.Code || '',
-        schedule: d.PositionSchedule?.[0]?.Name || '',
-        url: d.PositionURI || '',
-        applyUrl: d.ApplyURI?.[0] || d.PositionURI || '',
-        closing: d.ApplicationCloseDate ? fmtDate(d.ApplicationCloseDate) : '',
-        qualifications: d.QualificationSummary ? d.QualificationSummary.slice(0, 300) : '',
-      };
-    });
-    return { items, total, status: res.status };
+    return result;
   } catch (e) {
     return { items: [], total: 0, error: 'USAJobs request failed: ' + (e?.message || String(e)) };
   }
@@ -251,11 +375,19 @@ export default {
           status: probe.status ?? null,
           totalResults: probe.total,
           returned: probe.items.length,
+          usedLegacyParams: !!probe.usedLegacyParams,
           error: probe.error || null,
         };
+        // ?raw=1 reports the field names USAJobs actually returned plus one
+        // mapped listing. The last two outages were schema drift diagnosed by
+        // guesswork; this makes the next one a single curl.
+        if (url.searchParams.get('raw') === '1') {
+          usajobs.descriptorKeys = probe.descriptorKeys || [];
+          usajobs.sample = probe.items[0] || null;
+        }
       }
       return json({
-        status: 'ok', version: 7,
+        status: 'ok', version: 8,
         model: env.CLAUDE_MODEL || DEFAULT_MODEL,
         hasAnthropicKey: !!env.ANTHROPIC_API_KEY,
         hasUsajobsKey: !!env.USAJOBS_API_KEY,
