@@ -18,6 +18,7 @@ public/               Static site (Cloudflare Pages or any static host)
 worker/               Cloudflare Worker (USAJobs + Claude proxy) — API only
   src/index.ts         POST /chat → USAJobs API + Claude API → strict JSON
   src/index.js         Same logic in plain JS — keep in sync with index.ts
+  test/                Mocked USAJobs/Claude tests — `npm test`
   wrangler.toml        Alternate config; mirrors the root wrangler.jsonc
 
 wrangler.jsonc        Canonical Worker deploy config (does not deploy public/)
@@ -78,6 +79,17 @@ Then set the Worker URL in `public/index.html`:
 </script>
 ```
 
+## Tests
+
+```bash
+npm test
+```
+
+Runs the Worker against mocked USAJobs and Claude responses — no keys, no
+network. The USAJobs cases cover both the response shape the API returns today
+and the fuller documented one, so a future schema change fails a test instead of
+silently blanking a field.
+
 ## Deployment
 
 ### 1. Deploy the Worker
@@ -131,6 +143,29 @@ curl https://<your-worker>.workers.dev/health
 If `usajobs.ok` is `false`, `usajobs.error` carries the actual USAJobs status and
 response body — a `401` means `USAJOBS_API_KEY` / `USAJOBS_EMAIL` don't match the
 pair USAJobs issued you. Add `?deep=0` to skip the live probe.
+
+**When results look wrong rather than absent, add `?raw=1`.** It reports the
+field names USAJobs actually returned on the descriptor, plus one fully mapped
+listing:
+
+```bash
+curl 'https://<your-worker>.workers.dev/health?raw=1'
+```
+
+```json
+"usajobs": {
+  "ok": true,
+  "usedLegacyParams": false,
+  "descriptorKeys": ["PositionTitle", "PositionURI", "PositionSchedule", "..."],
+  "sample": { "title": "Registered Nurse", "schedule": "Full-time", "applyUrl": "https://www.usajobs.gov/..." }
+}
+```
+
+A field that is blank in `sample` but present in `descriptorKeys` means the shape
+under that key changed; a key that has disappeared from `descriptorKeys`
+entirely means USAJobs dropped or renamed it. `usedLegacyParams: true` means
+USAJobs rejected one of the newer query parameters and the Worker fell back to
+the older set to keep the search working.
 
 ### 2. Configure CORS
 
